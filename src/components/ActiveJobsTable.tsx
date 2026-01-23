@@ -8,10 +8,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 interface ActiveJobsTableProps {
   jobs: Job[];
   onViewJob: (job: Job) => void;
-  onViewRunDiagnostics: (job: Job) => void;
 }
 
-export const ActiveJobsTable: React.FC<ActiveJobsTableProps> = ({ jobs, onViewJob, onViewRunDiagnostics }) => {
+export const ActiveJobsTable: React.FC<ActiveJobsTableProps> = ({ jobs, onViewJob }) => {
   const table = useTable<Job>({
     initialData: jobs,
     initialSortColumn: 'recentEvent',
@@ -97,7 +96,6 @@ export const ActiveJobsTable: React.FC<ActiveJobsTableProps> = ({ jobs, onViewJo
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-3">
                     <button onClick={() => onViewJob(job)} className="text-[10px] font-bold text-[#1967D2] hover:underline">View</button>
-                    <button onClick={() => onViewRunDiagnostics(job)} className="text-[10px] font-bold text-[#1967D2] hover:underline">Run diagnostics</button>
                   </div>
                 </td>
               </tr>

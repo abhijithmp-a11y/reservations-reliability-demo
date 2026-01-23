@@ -1010,7 +1010,6 @@ export default function App() {
           <ActiveJobsTable 
             jobs={filteredJobs} 
             onViewJob={handleViewJob} 
-            onViewRunDiagnostics={handleViewRunDiagnostics} 
           />
         </Card>
       </div>

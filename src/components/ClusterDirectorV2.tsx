@@ -538,13 +538,25 @@ export const UnifiedNodeDetail: React.FC<{
               <div className="text-xs font-mono font-bold text-slate-700">{maintConfig.driver}</div>
             </div>
             {maintStatus === 'pending' && (
-              <div className="bg-violet-50 p-2.5 rounded border border-violet-100 mt-2">
-                <div className="text-[9px] text-violet-600 uppercase font-bold mb-1">Future Version</div>
-                <div className="flex justify-between items-center">
-                  <div className="text-xs font-mono font-bold text-violet-700">v535.160.01</div>
-                  <button className="text-[10px] font-bold text-white bg-violet-600 px-2 py-1 rounded hover:bg-violet-700 transition-colors shadow-sm">
-                    Update now
-                  </button>
+              <div className="bg-violet-50 p-2.5 rounded border border-violet-100 mt-2 space-y-2">
+                <div>
+                  <div className="text-[9px] text-violet-600 uppercase font-bold mb-1">Future Version</div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs font-mono font-bold text-violet-700">v535.160.01</div>
+                    <button className="text-[10px] font-bold text-white bg-violet-600 px-2 py-1 rounded hover:bg-violet-700 transition-colors shadow-sm">
+                      Update now
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-violet-200/50">
+                  <div>
+                    <div className="text-[9px] text-violet-500 uppercase font-bold">Scheduled Start</div>
+                    <div className="text-[10px] font-bold text-violet-700">Jan 25, 04:00 AM</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-violet-500 uppercase font-bold">Est. Duration</div>
+                    <div className="text-[10px] font-bold text-violet-700">45 minutes</div>
+                  </div>
                 </div>
               </div>
             )}
