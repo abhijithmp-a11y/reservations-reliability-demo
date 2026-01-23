@@ -984,6 +984,10 @@ export default function App() {
             setView('dashboard');
             setSelectedJob(null);
           }} 
+          onJobClick={(jobId) => {
+            const job = MOCK_JOBS.find(j => j.id === jobId) || MOCK_JOBS[0];
+            handleViewJob(job);
+          }}
         />
       );
     }
@@ -1239,9 +1243,18 @@ export default function App() {
                          setView('dashboard');
                          setSelectedClusterId(null);
                        }}
+                       onJobClick={(jobId) => {
+                         const job = MOCK_JOBS.find(j => j.id === jobId) || MOCK_JOBS[0];
+                         handleViewJob(job);
+                       }}
                      />
                   ) : (
-                     <ClusterDirectorV2 /> 
+                     <ClusterDirectorV2 
+                       onJobClick={(jobId) => {
+                         const job = MOCK_JOBS.find(j => j.id === jobId) || MOCK_JOBS[0];
+                         handleViewJob(job);
+                       }}
+                     /> 
                   )}
                </div>
             )}

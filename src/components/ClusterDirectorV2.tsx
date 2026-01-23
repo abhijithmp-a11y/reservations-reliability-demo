@@ -423,7 +423,8 @@ export const UnifiedNodeDetail: React.FC<{
   healthStatus: 'healthy' | 'degraded' | 'unhealthy';
   maintStatus: 'uptodate' | 'available' | 'inprogress' | 'pending';
   hasVM: boolean;
-}> = ({ nodeIdx, blockLabel, healthStatus, maintStatus, hasVM }) => {
+  onJobClick?: (jobId: string) => void;
+}> = ({ nodeIdx, blockLabel, healthStatus, maintStatus, hasVM, onJobClick }) => {
   const healthConfig = {
     healthy: { color: 'bg-cyan-500', textColor: 'text-cyan-700', label: 'HEALTHY', detailValue: 'Normal', action: null },
     degraded: { color: 'bg-amber-500', textColor: 'text-amber-700', label: 'DEGRADED', detailValue: hasVM ? 'High Latency' : 'Maintenance State', action: 'Investigate metrics' },
@@ -500,7 +501,12 @@ export const UnifiedNodeDetail: React.FC<{
             {hasVM && (
               <div className="bg-slate-50 p-2 rounded border border-slate-100 col-span-2">
                 <div className="text-[9px] text-slate-400 uppercase font-bold">Running Job</div>
-                <div className="text-xs font-mono font-bold text-[#1967D2]">job-zeta-{(nodeIdx * 13) % 900 + 100}</div>
+                <button 
+                  onClick={() => onJobClick?.(`job-zeta-${(nodeIdx * 13) % 900 + 100}`)}
+                  className="text-xs font-mono font-bold text-[#1967D2] hover:underline cursor-pointer text-left block w-full"
+                >
+                  job-zeta-{(nodeIdx * 13) % 900 + 100}
+                </button>
               </div>
             )}
           </div>
@@ -591,7 +597,11 @@ export const UnifiedNodeDetail: React.FC<{
   );
 };
 
-export const ClusterDirectorV2: React.FC<{ onBack?: () => void; clusterId?: string }> = ({ onBack, clusterId }) => {
+export const ClusterDirectorV2: React.FC<{ 
+  onBack?: () => void; 
+  clusterId?: string;
+  onJobClick?: (jobId: string) => void;
+}> = ({ onBack, clusterId, onJobClick }) => {
   const [mainTab, setMainTab] = useState<'DETAILS' | 'TOPOLOGY'>('DETAILS');
   const [viewMode, setViewMode] = useState<ViewMode>('HEALTH');
   const [blocks, setBlocks] = useState(MOCK_BLOCKS);
@@ -1242,6 +1252,7 @@ export const ClusterDirectorV2: React.FC<{ onBack?: () => void; clusterId?: stri
                                  color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
                         })()}
                         hasVM={selectedNode.hasVM}
+                        onJobClick={onJobClick}
                       />
                     )}
 

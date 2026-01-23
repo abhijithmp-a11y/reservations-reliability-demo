@@ -6,6 +6,7 @@ import { UnifiedNodeDetail } from './ClusterDirectorV2';
 interface JobTopologyProps {
   job: Job;
   onBack: () => void;
+  onJobClick?: (jobId: string) => void;
 }
 
 interface NodeState {
@@ -14,7 +15,7 @@ interface NodeState {
   maintStatus: 'uptodate' | 'available' | 'inprogress' | 'pending';
 }
 
-export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack }) => {
+export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClick }) => {
   const [selectedNode, setSelectedNode] = useState<NodeState | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -182,6 +183,7 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack }) => {
               healthStatus={selectedNode.status}
               maintStatus={selectedNode.maintStatus}
               hasVM={true}
+              onJobClick={onJobClick}
             />
           </div>
         )}
