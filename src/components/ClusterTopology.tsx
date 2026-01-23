@@ -60,21 +60,6 @@ const TopologyLegend = () => (
       <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></div>
       <span className="text-[10px] text-slate-600 font-medium">Unhealthy cluster</span>
     </div>
-    
-    <div className="w-px h-3 bg-slate-300 hidden sm:block"></div>
-
-    <div className="flex items-center gap-1.5">
-      <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500"></div>
-      <span className="text-[10px] text-slate-600 font-medium">High util</span>
-    </div>
-    <div className="flex items-center gap-1.5">
-      <div className="w-2.5 h-2.5 rounded-[1px] bg-amber-400"></div>
-      <span className="text-[10px] text-slate-600 font-medium">Med util</span>
-    </div>
-    <div className="flex items-center gap-1.5">
-      <div className="w-2.5 h-2.5 rounded-[1px] bg-rose-500"></div>
-      <span className="text-[10px] text-slate-600 font-medium">Low util</span>
-    </div>
   </div>
 );
 
