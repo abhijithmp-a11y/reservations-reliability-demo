@@ -1109,6 +1109,7 @@ export const ClusterDirectorV2: React.FC<{
                     <>
                       <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-300"/> Healthy</div>
                       <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending Maint</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#78350f]"/> Pending Repair</div>
                       <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/> Degraded</div>
                       <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"/> Unhealthy</div>
                     </>
