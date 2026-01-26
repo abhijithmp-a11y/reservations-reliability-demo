@@ -215,13 +215,16 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
           </h3>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-              <div className="w-2 h-2 rounded-sm bg-cyan-500" /> Healthy
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#67e8f9' }} /> Healthy
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-              <div className="w-2 h-2 rounded-sm bg-amber-500" /> Degraded
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#8b5cf6' }} /> Pending Maint
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-              <div className="w-2 h-2 rounded-sm bg-rose-600" /> Unhealthy
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#fbbf24' }} /> Degraded
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#f43f5e' }} /> Unhealthy
             </div>
           </div>
         </div>
@@ -229,14 +232,30 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
         <div className="flex flex-wrap gap-1.5">
           {filteredNodes.map((node) => {
             const isSelected = selectedNode?.id === node.id;
-            const color = node.status === 'healthy' ? 'bg-cyan-500' : node.status === 'degraded' ? 'bg-amber-500' : 'bg-rose-600';
+            const isPendingMaint = node.maintStatus === 'pending';
+            
+            // Base colors matching ClusterDirectorV2
+            const colors = {
+              healthy: '#67e8f9', // Cyan-300
+              degraded: '#fbbf24', // Amber-400
+              unhealthy: '#f43f5e', // Rose-500
+              pending: '#8b5cf6', // Violet-500
+            };
+
+            const baseColor = node.status === 'healthy' ? colors.healthy : 
+                             node.status === 'degraded' ? colors.degraded : colors.unhealthy;
             
             return (
               <div 
                 key={node.id}
                 onClick={() => setSelectedNode(isSelected ? null : node)}
-                className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'} ${color}`}
-                title={`Node ${node.id} - ${node.status.toUpperCase()}`}
+                className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
+                style={{
+                  background: isPendingMaint 
+                    ? `linear-gradient(135deg, ${baseColor} 50%, ${colors.pending} 50%)`
+                    : baseColor
+                }}
+                title={`Node ${node.id} - ${node.status.toUpperCase()}${isPendingMaint ? ' (Pending Maintenance)' : ''}`}
               />
             );
           })}
