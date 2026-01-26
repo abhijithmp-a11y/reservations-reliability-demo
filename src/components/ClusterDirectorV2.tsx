@@ -56,6 +56,10 @@ const COLORS = {
     available: '#f59e0b', // Amber-500
     inprogress: '#ec4899', // Pink-500
     pending: '#8b5cf6', // Violet-500
+  },
+  repair: {
+    pending: '#78350f', // Brown-900
+    inprogress: '#451a03', // Brown-950
   }
 };
 
@@ -422,9 +426,10 @@ export const UnifiedNodeDetail: React.FC<{
   blockLabel: string; 
   healthStatus: 'healthy' | 'degraded' | 'unhealthy';
   maintStatus: 'uptodate' | 'available' | 'inprogress' | 'pending';
+  repairStatus?: 'none' | 'pending' | 'inprogress';
   hasVM: boolean;
   onJobClick?: (jobId: string) => void;
-}> = ({ nodeIdx, blockLabel, healthStatus, maintStatus, hasVM, onJobClick }) => {
+}> = ({ nodeIdx, blockLabel, healthStatus, maintStatus, repairStatus = 'none', hasVM, onJobClick }) => {
   const healthConfig = {
     healthy: { color: 'bg-cyan-500', textColor: 'text-cyan-700', label: 'HEALTHY', detailValue: 'Normal', action: null },
     degraded: { color: 'bg-amber-500', textColor: 'text-amber-700', label: 'DEGRADED', detailValue: hasVM ? 'High Latency' : 'Maintenance State', action: 'Investigate metrics' },
@@ -517,6 +522,30 @@ export const UnifiedNodeDetail: React.FC<{
               </button>
             </div>
           )}
+
+          {/* Recent VM Termination */}
+          {hasVM && (
+            <div className="pt-4 border-t border-slate-100">
+              <div className="flex justify-between items-center mb-2">
+                <h5 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Recent VM Termination</h5>
+                <button className="text-[9px] font-bold text-[#1967D2] hover:underline flex items-center gap-0.5">
+                  View history <ExternalLink size={10} />
+                </button>
+              </div>
+              <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-[9px] text-slate-400 uppercase font-bold">Reason</div>
+                    <div className="text-[10px] font-bold text-slate-700">Preemption (Priority)</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[9px] text-slate-400 uppercase font-bold">Time</div>
+                    <div className="text-[10px] font-bold text-slate-700">Jan 24, 11:45 PM</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Middle Col: Software & Maintenance */}
@@ -572,6 +601,33 @@ export const UnifiedNodeDetail: React.FC<{
               <div className="text-[9px] text-slate-400 uppercase font-bold mb-1">Last Maintenance</div>
               <div className="text-xs font-bold text-slate-700">Jan 12, 2025 (Routine)</div>
             </div>
+
+            {/* Hardware Repairs Section */}
+            {repairStatus !== 'none' && (
+              <div className="pt-4 border-t border-slate-100 mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h5 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Hardware Repairs</h5>
+                  <div className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${repairStatus === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {repairStatus.toUpperCase()}
+                  </div>
+                </div>
+                <div className="bg-amber-50 p-2.5 rounded border border-amber-100 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-[9px] text-amber-600 uppercase font-bold">Unhealthy Component</div>
+                      <div className="text-[10px] font-bold text-amber-900">NVLink Bridge (GPU 4-5)</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-amber-600 uppercase font-bold">Scheduled Start</div>
+                      <div className="text-[10px] font-bold text-amber-900">Jan 27, 02:00 PM</div>
+                    </div>
+                  </div>
+                  <button className="w-full py-1.5 bg-amber-700 text-white text-[10px] font-bold rounded hover:bg-amber-800 transition-colors shadow-sm">
+                    Send machine to repair now
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         {/* Right Col: Recent Test Runs */}
@@ -710,6 +766,7 @@ export const ClusterDirectorV2: React.FC<{
                   <div className="space-y-1.5 text-xs text-slate-600">
                     <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-cyan-300"/> Healthy: <span className="text-[#1967D2]">414 VMs</span></div>
                     <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-500"/> Pending Maint: <span className="text-[#1967D2]">47 VMs</span></div>
+                    <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#78350f]"/> Pending Repair: <span className="text-[#1967D2]">5 VMs</span></div>
                     <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400"/> Degraded: <span className="text-[#1967D2]">13 VMs</span></div>
                     <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-rose-500"/> Unhealthy: <span className="text-[#1967D2]">3 VMs</span></div>
                   </div>
@@ -1232,14 +1289,26 @@ export const ClusterDirectorV2: React.FC<{
                                       background: hasVM 
                                         ? (isPendingMaint && viewMode === 'HEALTH' 
                                             ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` 
-                                            : color)
+                                            : ((nodeIdx + blockIdx * 18 + sbIdx * 36) % 13 === 5 && viewMode === 'HEALTH'
+                                               ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)`
+                                               : color))
                                         : 'transparent',
                                       border: hasVM ? 'none' : `1.5px solid ${color}`
                                     }}
-                                    title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}`}
+                                    title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}${(nodeIdx + blockIdx * 18 + sbIdx * 36) % 13 === 5 ? ' (Pending Repair)' : ''}`}
                                     onClick={() => {
                                       if (isSelected) setSelectedNode(null);
-                                      else setSelectedNode({ sbId: sb.id, blockId: block.id, nodeIdx, status, hasVM });
+                                      else {
+                                        const isPendingRepair = (nodeIdx + blockIdx * 18 + sbIdx * 36) % 13 === 5;
+                                        setSelectedNode({ 
+                                          sbId: sb.id, 
+                                          blockId: block.id, 
+                                          nodeIdx, 
+                                          status, 
+                                          hasVM, 
+                                          repairStatus: isPendingRepair ? 'pending' : 'none' 
+                                        });
+                                      }
                                     }}
                                   >
                                     {!hasVM && <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />}
@@ -1263,6 +1332,7 @@ export const ClusterDirectorV2: React.FC<{
                                  color === COLORS.maintenance.available ? 'available' : 
                                  color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
                         })()}
+                        repairStatus={selectedNode.repairStatus}
                         hasVM={selectedNode.hasVM}
                         onJobClick={onJobClick}
                       />

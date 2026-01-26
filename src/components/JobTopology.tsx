@@ -23,6 +23,7 @@ interface NodeState {
   id: number;
   status: 'healthy' | 'degraded' | 'unhealthy';
   maintStatus: 'uptodate' | 'available' | 'inprogress' | 'pending';
+  repairStatus: 'none' | 'pending' | 'inprogress';
   block: string;
   subblock: string;
 }
@@ -60,10 +61,16 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
       const blockNum = Math.floor(i / 32) + 1;
       const subblockNum = Math.floor((i % 32) / 8) + 1;
 
+      const repairSeed = (i * 47 + job.id.length) % 100;
+      let repairStatus: 'none' | 'pending' | 'inprogress' = 'none';
+      if (repairSeed > 97) repairStatus = 'inprogress';
+      else if (repairSeed > 92) repairStatus = 'pending';
+
       result.push({ 
         id: i, 
         status, 
         maintStatus,
+        repairStatus,
         block: `Block ${blockNum}`,
         subblock: `Subblock ${subblockNum}`
       });
@@ -221,6 +228,9 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#8b5cf6' }} /> Pending Maint
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#78350f' }} /> Pending Repair
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#fbbf24' }} /> Degraded
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
@@ -233,6 +243,7 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
           {filteredNodes.map((node) => {
             const isSelected = selectedNode?.id === node.id;
             const isPendingMaint = node.maintStatus === 'pending';
+            const isPendingRepair = node.repairStatus === 'pending';
             
             // Base colors matching ClusterDirectorV2
             const colors = {
@@ -240,22 +251,26 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
               degraded: '#fbbf24', // Amber-400
               unhealthy: '#f43f5e', // Rose-500
               pending: '#8b5cf6', // Violet-500
+              repair: '#78350f', // Brown-900
             };
 
             const baseColor = node.status === 'healthy' ? colors.healthy : 
                              node.status === 'degraded' ? colors.degraded : colors.unhealthy;
             
+            let background = baseColor;
+            if (isPendingMaint) {
+              background = `linear-gradient(135deg, ${baseColor} 50%, ${colors.pending} 50%)`;
+            } else if (isPendingRepair) {
+              background = `linear-gradient(135deg, ${baseColor} 50%, ${colors.repair} 50%)`;
+            }
+
             return (
               <div 
                 key={node.id}
                 onClick={() => setSelectedNode(isSelected ? null : node)}
                 className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
-                style={{
-                  background: isPendingMaint 
-                    ? `linear-gradient(135deg, ${baseColor} 50%, ${colors.pending} 50%)`
-                    : baseColor
-                }}
-                title={`Node ${node.id} - ${node.status.toUpperCase()}${isPendingMaint ? ' (Pending Maintenance)' : ''}`}
+                style={{ background }}
+                title={`Node ${node.id} - ${node.status.toUpperCase()}${isPendingMaint ? ' (Pending Maintenance)' : ''}${isPendingRepair ? ' (Pending Repair)' : ''}`}
               />
             );
           })}
@@ -269,6 +284,7 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
               blockLabel="Job Allocation"
               healthStatus={selectedNode.status}
               maintStatus={selectedNode.maintStatus}
+              repairStatus={selectedNode.repairStatus}
               hasVM={true}
               onJobClick={onJobClick}
             />
