@@ -413,6 +413,12 @@ const NodeMaintenanceDetail: React.FC<{
           <div className="text-xs font-bold text-slate-700">12 days ago</div>
         </div>
         <div className="bg-white p-2 rounded border border-slate-200">
+          <div className="text-[9px] text-slate-400 uppercase font-bold">Repair Log</div>
+          <div className="text-[10px] font-bold text-[#1967D2] hover:underline cursor-pointer flex items-center gap-1 mt-1">
+            Machine repair log <ExternalLink size={10} />
+          </div>
+        </div>
+        <div className="bg-white p-2 rounded border border-slate-200">
           <div className="text-[9px] text-slate-400 uppercase font-bold">Action</div>
           <div className="text-[10px] font-bold text-slate-500">{config.action}</div>
         </div>
@@ -600,6 +606,12 @@ export const UnifiedNodeDetail: React.FC<{
             <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
               <div className="text-[9px] text-slate-400 uppercase font-bold mb-1">Last Maintenance</div>
               <div className="text-xs font-bold text-slate-700">Jan 12, 2025 (Routine)</div>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+              <div className="text-[9px] text-slate-400 uppercase font-bold mb-1">Repair Log</div>
+              <div className="text-[10px] font-bold text-[#1967D2] hover:underline cursor-pointer flex items-center gap-1">
+                Machine repair log <ExternalLink size={10} />
+              </div>
             </div>
 
             {/* Hardware Repairs Section */}
