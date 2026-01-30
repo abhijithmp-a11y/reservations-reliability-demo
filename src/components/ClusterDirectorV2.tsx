@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ChevronDown, 
   Shield, 
@@ -43,6 +43,7 @@ const COLORS = {
     healthy: '#67e8f9', // Cyan-300
     suspected: '#fbbf24', // Amber-400
     unhealthy: '#f43f5e', // Rose-500
+    schedulable: '#f59e0b', // Amber-500
   },
   utilization: {
     low: '#93c5fd', // Blue-300
@@ -439,7 +440,13 @@ export const UnifiedNodeDetail: React.FC<{
   const healthConfig = {
     healthy: { color: 'bg-cyan-500', textColor: 'text-cyan-700', label: 'HEALTHY', detailValue: 'Normal', action: null },
     degraded: { color: 'bg-amber-500', textColor: 'text-amber-700', label: 'DEGRADED', detailValue: hasVM ? 'High Latency' : 'Maintenance State', action: 'Investigate metrics' },
-    unhealthy: { color: 'bg-rose-600', textColor: 'text-rose-700', label: 'UNHEALTHY', detailValue: 'XID 31 (Memory)', action: 'Replace node' }
+    unhealthy: { 
+      color: 'bg-rose-600', 
+      textColor: 'text-rose-700', 
+      label: 'UNHEALTHY', 
+      detailValue: !hasVM ? 'In repair' : 'XID 31 (Memory)', 
+      action: 'Replace node' 
+    }
   }[healthStatus];
 
   const maintConfig = {
@@ -677,20 +684,44 @@ export const UnifiedNodeDetail: React.FC<{
   );
 };
 
+const HealthTooltip = ({ title, items }: { title: string; items: { label: string; color: string; description: string }[] }) => (
+  <div className="group relative inline-block ml-1">
+    <HelpCircle size={14} className="text-slate-300 hover:text-slate-500 cursor-help transition-colors" />
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+      <div className="font-bold mb-2 text-slate-300 uppercase tracking-wider border-b border-slate-700 pb-1">{title}</div>
+      <div className="space-y-2">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${item.color}`} />
+            <div>
+              <span className="font-bold text-slate-200">{item.label}:</span> {item.description}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+    </div>
+  </div>
+);
+
 export const ClusterDirectorV2: React.FC<{ 
   onBack?: () => void; 
   clusterId?: string;
   onJobClick?: (jobId: string) => void;
 }> = ({ onBack, clusterId, onJobClick }) => {
-  const [mainTab, setMainTab] = useState<'DETAILS' | 'TOPOLOGY'>('DETAILS');
   const [viewMode, setViewMode] = useState<ViewMode>('HEALTH');
   const [blocks, setBlocks] = useState(MOCK_BLOCKS);
+  const [basicsOpen, setBasicsOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [blockFilter, setBlockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
+  const [subblockFilter, setSubblockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY' | 'SCHEDULABLE'>('ALL');
   const [selectedNode, setSelectedNode] = useState<{ 
     sbId: string; 
     blockId: string; 
     nodeIdx: number;
     status: any;
     hasVM: boolean;
+    repairStatus?: 'none' | 'pending' | 'inprogress';
   } | null>(() => {
     // Auto-select first unhealthy node in Block 1 for demo purposes
     const sb1 = MOCK_BLOCKS[0];
@@ -699,11 +730,6 @@ export const ClusterDirectorV2: React.FC<{
     // In getNodeColor, key 15 is unhealthy. blockIdx 0, nodeIdx 15 -> key 15.
     return { sbId: sb1.id, blockId: b1.id, nodeIdx: 15, status: 'unhealthy', hasVM };
   });
-
-  const toggleBlock = (id: string) => {
-    setBlocks(prev => prev.map(sb => sb.id === id ? { ...sb, isOpen: !sb.isOpen } : sb));
-    if (selectedNode?.sbId === id) setSelectedNode(null);
-  };
 
   const handleTabChange = (mode: ViewMode) => {
     setViewMode(mode);
@@ -715,9 +741,9 @@ export const ClusterDirectorV2: React.FC<{
     const key = (sbIdx * 36) + (blockIdx * 18) + nodeIdx;
     
     if (mode === 'HEALTH') {
-      // SB 0 (sb1): 15 (U), 30 (U), 20 (D)
+      // SB 0 (sb1): 15 (U), 30 (U), 20 (D), 21 (U), 28 (U)
       if (sbIdx === 0) {
-        if (key === 15 || key === 30) return COLORS.health.unhealthy;
+        if (key === 15 || key === 30 || key === 21 || key === 28) return COLORS.health.unhealthy;
         if (key === 20) return COLORS.health.suspected;
       }
       // SB 1 (sb2): 42 (U), 50, 51, 52 (D)
@@ -751,54 +777,263 @@ export const ClusterDirectorV2: React.FC<{
     return '#e2e8f0';
   };
 
-  const renderDashboardCard = () => {
+  const reconciledMetrics = useMemo(() => {
+    let totalNodes = 0;
+    let nodesWithVM = 0;
+    let emptyNodes = 0;
+    let healthyCount = 0;
+    let pendingMaintCount = 0;
+    let pendingRepairCount = 0;
+    let degradedCount = 0;
+    let unhealthyCount = 0;
+
+    let maintUpToDate = 0;
+    let maintAvailable = 0;
+    let maintInProgress = 0;
+
+    let healthyBlocks = 0;
+    let unhealthyBlocks = 0;
+    let healthySubblocks = 0;
+    let unhealthySubblocks = 0;
+    let schedulableSubblocks = 0;
+
+    blocks.forEach((sb, sbIdx) => {
+      let isBlockHealthy = true;
+      sb.subblocks.forEach((block, blockIdx) => {
+        let healthyNodesInSubblock = 0;
+        block.nodes.forEach((_, nodeIdx) => {
+          totalNodes++;
+          const key = (sbIdx * 36) + (blockIdx * 18) + nodeIdx;
+          const hasVM = key % 7 !== 0;
+          
+          if (hasVM) {
+            nodesWithVM++;
+            
+            const healthColor = getNodeColor(sbIdx, blockIdx, nodeIdx, 'HEALTH');
+            if (healthColor === COLORS.health.unhealthy) {
+              unhealthyCount++;
+            }
+            else {
+              healthyNodesInSubblock++;
+              if (healthColor === COLORS.health.suspected) degradedCount++;
+              else healthyCount++;
+            }
+
+            if (key % 13 === 5) pendingRepairCount++;
+
+            const maintColor = getNodeColor(sbIdx, blockIdx, nodeIdx, 'MAINTENANCE');
+            if (maintColor === COLORS.maintenance.pending) pendingMaintCount++;
+            else if (maintColor === COLORS.maintenance.uptodate) maintUpToDate++;
+            else if (maintColor === COLORS.maintenance.available) maintAvailable++;
+            else if (maintColor === COLORS.maintenance.inprogress) maintInProgress++;
+          } else {
+            emptyNodes++;
+            const healthColor = getNodeColor(sbIdx, blockIdx, nodeIdx, 'HEALTH');
+            if (healthColor === COLORS.health.unhealthy) {
+              unhealthyCount++;
+            } else {
+              healthyNodesInSubblock++;
+            }
+          }
+        });
+        
+        if (healthyNodesInSubblock === 18) {
+          healthySubblocks++;
+        } else if (healthyNodesInSubblock >= 16) {
+          schedulableSubblocks++;
+          isBlockHealthy = false;
+        } else {
+          unhealthySubblocks++;
+          isBlockHealthy = false;
+        }
+      });
+      if (isBlockHealthy) healthyBlocks++;
+      else unhealthyBlocks++;
+    });
+
+    return {
+      totalNodes,
+      nodesWithVM,
+      emptyNodes,
+      healthyCount,
+      pendingMaintCount,
+      pendingRepairCount,
+      degradedCount,
+      unhealthyCount,
+      maintUpToDate,
+      maintAvailable,
+      maintInProgress,
+      healthyBlocks,
+      unhealthyBlocks,
+      healthySubblocks,
+      unhealthySubblocks,
+      schedulableSubblocks,
+      unplannedCount: Math.round(totalNodes * 0.01),
+      upcomingImpact: {
+        fiveDays: Math.round(totalNodes * 0.18),
+        week: Math.round(totalNodes * 0.13),
+        month: Math.round(totalNodes * 0.5)
+      }
+    };
+  }, [blocks]);
+
+  const dynamicHealthDonut = [
+    { name: 'Healthy', value: reconciledMetrics.healthyCount, color: COLORS.health.healthy },
+    { name: 'Pending Maint.', value: reconciledMetrics.pendingMaintCount, color: COLORS.maintenance.pending },
+    { name: 'Pending Repair', value: reconciledMetrics.pendingRepairCount, color: COLORS.repair.pending },
+    { name: 'Degraded', value: reconciledMetrics.degradedCount, color: COLORS.health.suspected },
+    { name: 'Unhealthy', value: reconciledMetrics.unhealthyCount, color: COLORS.health.unhealthy },
+  ];
+
+  const dynamicMaintDonut = [
+    { name: 'Up-to-date', value: reconciledMetrics.maintUpToDate, color: COLORS.maintenance.uptodate },
+    { name: 'Pending', value: reconciledMetrics.pendingMaintCount, color: COLORS.maintenance.pending },
+    { name: 'Available', value: reconciledMetrics.maintAvailable, color: COLORS.maintenance.available },
+    { name: 'In Progress', value: reconciledMetrics.maintInProgress, color: COLORS.maintenance.inprogress },
+  ];
+
+  const toggleBlock = (id: string) => {
+    setBlocks(prev => prev.map(sb => sb.id === id ? { ...sb, isOpen: !sb.isOpen } : sb));
+    if (selectedNode?.sbId === id) setSelectedNode(null);
+  };
+
+   const renderDashboardCard = () => {
     switch (viewMode) {
       case 'HEALTH':
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
-            {/* Donut */}
-            <div className="relative w-32 h-32 shrink-0 mx-auto lg:mx-0">
-               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                 <PieChart>
-                   <Pie data={HEALTH_DONUT} innerRadius={45} outerRadius={55} dataKey="value" startAngle={90} endAngle={-270} stroke="none">
-                     {HEALTH_DONUT.map((e, i) => <Cell key={i} fill={e.color} />)}
-                   </Pie>
-                 </PieChart>
-               </ResponsiveContainer>
-               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                 <span className="text-2xl font-bold text-slate-700">430</span>
-                 <span className="text-[9px] text-slate-400 uppercase font-bold">Total VMs</span>
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+               {/* Blocks Health */}
+               <div className="space-y-4">
+                  <div className="flex justify-between items-end">
+                     <div>
+                        <div className="flex items-center gap-2 mb-1">
+                           <div className="flex items-center">
+                              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Blocks</h4>
+                              <HealthTooltip 
+                                 title="Block Health Criteria"
+                                 items={[
+                                    { label: 'Healthy', color: 'bg-cyan-400', description: 'All subblocks within the block are fully healthy (18/18 nodes).' },
+                                    { label: 'Unhealthy', color: 'bg-rose-500', description: 'Contains at least one subblock that is Schedulable or Unhealthy.' }
+                                 ]}
+                              />
+                           </div>
+                           <div className="flex items-center bg-slate-100 rounded-md p-0.5">
+                              {(['ALL', 'HEALTHY', 'UNHEALTHY'] as const).map((f) => (
+                                 <button
+                                    key={f}
+                                    onClick={() => setBlockFilter(f)}
+                                    className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${
+                                       blockFilter === f 
+                                          ? 'bg-white text-slate-900 shadow-sm' 
+                                          : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                 >
+                                    {f}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                        <p className="text-xs text-slate-500">Healthy vs Unhealthy</p>
+                     </div>
+                     <div className="text-right">
+                        <span className="text-2xl font-black text-slate-900">{reconciledMetrics.healthyBlocks + reconciledMetrics.unhealthyBlocks}</span>
+                        <span className="text-[10px] text-slate-400 ml-1 uppercase font-bold tracking-tighter">Total Blocks</span>
+                     </div>
+                  </div>
+                  <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                     <div 
+                        className="h-full bg-cyan-400 transition-all duration-500" 
+                        style={{ width: `${(reconciledMetrics.healthyBlocks / (reconciledMetrics.healthyBlocks + reconciledMetrics.unhealthyBlocks)) * 100}%` }}
+                     />
+                     <div 
+                        className="h-full bg-rose-500 transition-all duration-500" 
+                        style={{ width: `${(reconciledMetrics.unhealthyBlocks / (reconciledMetrics.healthyBlocks + reconciledMetrics.unhealthyBlocks)) * 100}%` }}
+                     />
+                  </div>
+                  <div className="flex justify-between text-[11px] font-bold">
+                     <div className="flex items-center gap-2 text-cyan-600">
+                        <div className="w-2 h-2 rounded-full bg-cyan-400" />
+                        Healthy: {reconciledMetrics.healthyBlocks}
+                     </div>
+                     <div className="flex items-center gap-2 text-rose-600">
+                        Unhealthy: {reconciledMetrics.unhealthyBlocks}
+                        <div className="w-2 h-2 rounded-full bg-rose-500" />
+                     </div>
+                  </div>
+               </div>
+
+               {/* Subblocks Health */}
+               <div className="space-y-4">
+                  <div className="flex justify-between items-end">
+                     <div>
+                        <div className="flex items-center gap-2 mb-1">
+                           <div className="flex items-center">
+                              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Subblocks</h4>
+                              <HealthTooltip 
+                                 title="Subblock Health Criteria"
+                                 items={[
+                                    { label: 'Healthy', color: 'bg-cyan-400', description: '18 out of 18 machines are healthy.' },
+                                    { label: 'Schedulable', color: 'bg-amber-500', description: '16 or 17 machines are healthy. Viable for most workloads.' },
+                                    { label: 'Unhealthy', color: 'bg-rose-500', description: 'Fewer than 16 machines are healthy. Critical failure state.' }
+                                 ]}
+                              />
+                           </div>
+                           <div className="flex items-center bg-slate-100 rounded-md p-0.5">
+                              {(['ALL', 'HEALTHY', 'SCHEDULABLE', 'UNHEALTHY'] as const).map((f) => (
+                                 <button
+                                    key={f}
+                                    onClick={() => setSubblockFilter(f)}
+                                    className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${
+                                       subblockFilter === f 
+                                          ? 'bg-white text-slate-900 shadow-sm' 
+                                          : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                 >
+                                    {f}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                        <p className="text-xs text-slate-500">Healthy vs Unhealthy</p>
+                     </div>
+                     <div className="text-right">
+                        <span className="text-2xl font-black text-slate-900">{reconciledMetrics.healthySubblocks + reconciledMetrics.unhealthySubblocks + reconciledMetrics.schedulableSubblocks}</span>
+                        <span className="text-[10px] text-slate-400 ml-1 uppercase font-bold tracking-tighter">Total Subblocks</span>
+                     </div>
+                  </div>
+                  <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                     <div 
+                        className="h-full bg-cyan-400 transition-all duration-500" 
+                        style={{ width: `${(reconciledMetrics.healthySubblocks / (reconciledMetrics.healthySubblocks + reconciledMetrics.unhealthySubblocks + reconciledMetrics.schedulableSubblocks)) * 100}%` }}
+                     />
+                     <div 
+                        className="h-full bg-amber-500 transition-all duration-500" 
+                        style={{ width: `${(reconciledMetrics.schedulableSubblocks / (reconciledMetrics.healthySubblocks + reconciledMetrics.unhealthySubblocks + reconciledMetrics.schedulableSubblocks)) * 100}%` }}
+                     />
+                     <div 
+                        className="h-full bg-rose-500 transition-all duration-500" 
+                        style={{ width: `${(reconciledMetrics.unhealthySubblocks / (reconciledMetrics.healthySubblocks + reconciledMetrics.unhealthySubblocks + reconciledMetrics.schedulableSubblocks)) * 100}%` }}
+                     />
+                  </div>
+                  <div className="flex justify-between text-[11px] font-bold">
+                     <div className="flex items-center gap-2 text-cyan-600">
+                        <div className="w-2 h-2 rounded-full bg-cyan-400" />
+                        Healthy: {reconciledMetrics.healthySubblocks}
+                     </div>
+                     <div className="flex items-center gap-2 text-amber-600">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" />
+                        Schedulable: {reconciledMetrics.schedulableSubblocks}
+                     </div>
+                     <div className="flex items-center gap-2 text-rose-600">
+                        Unhealthy: {reconciledMetrics.unhealthySubblocks}
+                        <div className="w-2 h-2 rounded-full bg-rose-500" />
+                     </div>
+                  </div>
                </div>
             </div>
 
-            {/* Metrics */}
-            <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="space-y-3">
-                  <h4 className="font-bold text-slate-800 text-xs">Health check status</h4>
-                  <div className="space-y-1.5 text-xs text-slate-600">
-                    <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-cyan-300"/> Healthy: <span className="text-[#1967D2]">414 VMs</span></div>
-                    <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-500"/> Pending Maint: <span className="text-[#1967D2]">47 VMs</span></div>
-                    <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#78350f]"/> Pending Repair: <span className="text-[#1967D2]">5 VMs</span></div>
-                    <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400"/> Degraded: <span className="text-[#1967D2]">13 VMs</span></div>
-                    <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-rose-500"/> Unhealthy: <span className="text-[#1967D2]">3 VMs</span></div>
-                  </div>
-               </div>
 
-               <div className="space-y-3">
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-xs mb-1">Unhealthy nodes</h4>
-                    <div className="flex items-center gap-1.5 text-rose-600 font-bold text-base"><AlertOctagon size={16} /> 3 / 430 VMs</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Last check 02/14/2025</div>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-xs mb-1">Degraded nodes</h4>
-                    <div className="flex items-center gap-1.5 text-amber-500 font-bold text-base"><AlertTriangle size={16} /> 13 / 430 VMs</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Based on AI Health Predictor</div>
-                  </div>
-               </div>
-
-
-            </div>
           </div>
         );
 
@@ -807,7 +1042,7 @@ export const ClusterDirectorV2: React.FC<{
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
              <div className="space-y-3">
                <h4 className="font-bold text-slate-800 text-xs">Reserved capacity</h4>
-               <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><AlertTriangle size={16} className="text-amber-500" /> 38 / 430 VMs</div>
+               <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><AlertTriangle size={16} className="text-amber-500" /> {reconciledMetrics.emptyNodes} / {reconciledMetrics.totalNodes} VMs</div>
                <p className="text-[10px] text-slate-500 leading-tight">You have unused reserved capacity. Start using these VMs to use it fully.</p>
                <button className="text-[#1967D2] text-[10px] font-bold hover:underline">See reservations</button>
              </div>
@@ -845,7 +1080,7 @@ export const ClusterDirectorV2: React.FC<{
 
              <div className="space-y-3">
                 <h4 className="font-bold text-slate-800 text-xs">Straggler detection <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-0.5"></span></h4>
-                <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><TrendingUp size={16} className="text-orange-500" /> 5 / 430 VMs</div>
+                <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><TrendingUp size={16} className="text-orange-500" /> 5 / {reconciledMetrics.totalNodes} VMs</div>
                 <p className="text-[10px] text-slate-500 leading-tight">Use checkpointing to replace nodes and keep jobs running.</p>
                 <button className="text-[#1967D2] text-[10px] font-bold hover:underline">Learn more</button>
              </div>
@@ -858,13 +1093,13 @@ export const ClusterDirectorV2: React.FC<{
              <div className="relative w-32 h-32 shrink-0 mx-auto lg:mx-0">
                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                  <PieChart>
-                   <Pie data={MAINT_DONUT} innerRadius={45} outerRadius={55} dataKey="value" startAngle={90} endAngle={-270} stroke="none">
-                     {MAINT_DONUT.map((e, i) => <Cell key={i} fill={e.color} />)}
+                   <Pie data={dynamicMaintDonut} innerRadius={45} outerRadius={55} dataKey="value" startAngle={90} endAngle={-270} stroke="none">
+                     {dynamicMaintDonut.map((e, i) => <Cell key={i} fill={e.color} />)}
                    </Pie>
                  </PieChart>
                </ResponsiveContainer>
                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                 <span className="text-2xl font-bold text-slate-700">430</span>
+                 <span className="text-2xl font-bold text-slate-700">{reconciledMetrics.totalNodes}</span>
                  <span className="text-[9px] text-slate-400 uppercase font-bold">Total VMs</span>
                </div>
              </div>
@@ -872,19 +1107,19 @@ export const ClusterDirectorV2: React.FC<{
              <div className="space-y-2">
                 <h4 className="font-bold text-slate-800 text-xs">Maintenance status</h4>
                 <div className="space-y-1.5 text-[11px] text-slate-600">
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"/> Up-to-date: <span className="text-[#1967D2]">200 VMs</span></div>
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-500"/> Pending: <span className="text-[#1967D2]">47 VMs</span></div>
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500"/> Update available: <span className="text-[#1967D2]">150 VMs</span></div>
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-pink-500"/> In progress: <span className="text-[#1967D2]">33 VMs</span></div>
+                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"/> Up-to-date: <span className="text-[#1967D2]">{reconciledMetrics.maintUpToDate} VMs</span></div>
+                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-500"/> Pending: <span className="text-[#1967D2]">{reconciledMetrics.pendingMaintCount} VMs</span></div>
+                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500"/> Update available: <span className="text-[#1967D2]">{reconciledMetrics.maintAvailable} VMs</span></div>
+                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-pink-500"/> In progress: <span className="text-[#1967D2]">{reconciledMetrics.maintInProgress} VMs</span></div>
                 </div>
              </div>
 
              <div className="space-y-3">
                <h4 className="font-bold text-slate-800 text-xs">Upcoming impact:</h4>
                <ul className="space-y-1.5 text-[10px] text-slate-600">
-                   <li><span className="text-purple-600 font-bold">•</span> Next 5 days: <span className="text-[#1967D2]">78 VMs</span></li>
-                   <li><span className="text-purple-400 font-bold">•</span> In a week: <span className="text-[#1967D2]">56 VMs</span></li>
-                   <li><span className="text-blue-500 font-bold">•</span> In a month: <span className="text-[#1967D2]">216 VMs</span></li>
+                   <li><span className="text-purple-600 font-bold">•</span> Next 5 days: <span className="text-[#1967D2]">{reconciledMetrics.upcomingImpact.fiveDays} VMs</span></li>
+                   <li><span className="text-purple-400 font-bold">•</span> In a week: <span className="text-[#1967D2]">{reconciledMetrics.upcomingImpact.week} VMs</span></li>
+                   <li><span className="text-blue-500 font-bold">•</span> In a month: <span className="text-[#1967D2]">{reconciledMetrics.upcomingImpact.month} VMs</span></li>
                </ul>
                <p className="text-[9px] text-slate-500 leading-tight">Start partially now to avoid disruption.</p>
                <button className="text-[#1967D2] text-[10px] font-bold hover:underline">Learn more</button>
@@ -892,7 +1127,7 @@ export const ClusterDirectorV2: React.FC<{
 
              <div className="space-y-3">
                <h4 className="font-bold text-slate-800 text-xs">Unplanned maintenance <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block ml-0.5"></span></h4>
-               <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><AlertOctagon size={16} className="fill-red-500 text-white" /> 4 / 430 VMs</div>
+               <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><AlertOctagon size={16} className="fill-red-500 text-white" /> {reconciledMetrics.unplannedCount} / {reconciledMetrics.totalNodes} VMs</div>
                <p className="text-[9px] text-slate-500 leading-tight">Start 02/14/2025 at 12:00 UTC. Add temporary capacity to keep jobs running.</p>
                <button className="text-[#1967D2] text-[10px] font-bold hover:underline">Start maintenance now</button>
              </div>
@@ -917,456 +1152,490 @@ export const ClusterDirectorV2: React.FC<{
         </div>
       )}
 
-      {/* Top Navigation */}
-      <div className="flex gap-6 border-b border-slate-200">
-         <button 
-           onClick={() => setMainTab('DETAILS')}
-           className={`px-1 py-2 border-b-2 font-bold text-xs transition-colors ${mainTab === 'DETAILS' ? 'border-[#1967D2] text-[#1967D2]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-         >
-           DETAILS
-         </button>
-         <button 
-           onClick={() => setMainTab('TOPOLOGY')}
-           className={`px-1 py-2 border-b-2 font-bold text-xs transition-colors ${mainTab === 'TOPOLOGY' ? 'border-[#1967D2] text-[#1967D2]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-         >
-           TOPOLOGY
-         </button>
-      </div>
+      {/* Top Navigation - Removed as per request to merge views */}
 
-      {mainTab === 'DETAILS' ? (
-        <div className="space-y-6 animate-fadeIn">
-           {/* Top Summary Cards */}
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* VMs Used Card */}
-              <div className="bg-white border border-slate-200 rounded-lg p-6 flex items-center gap-8 shadow-sm">
-                 <div className="relative w-24 h-24">
-                    <ResponsiveContainer width="100%" height="100%">
-                       <PieChart>
-                          <Pie 
-                            data={[{value: 100}]} 
-                            innerRadius={38} 
-                            outerRadius={45} 
-                            dataKey="value" 
-                            startAngle={90} 
-                            endAngle={-270} 
-                            stroke="none"
-                          >
-                             <Cell fill="#1a73e8" />
-                          </Pie>
-                       </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                       <span className="text-xl font-bold text-slate-800">18</span>
-                       <span className="text-[10px] text-slate-500">VMs used</span>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#1a73e8]" />
-                    <span className="text-sm text-slate-600">Compute Engine and GKE <span className="font-bold text-slate-800">18</span></span>
-                 </div>
-              </div>
+      <div className="space-y-6 animate-fadeIn">
+         {/* Physical Resource Topology Section (Chart Section at Top) */}
+         <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+               <div>
+                  <h3 className="text-lg font-medium text-slate-900">Reservation overview</h3>
+               </div>
+            </div>
 
-              {/* Unused Capacity Card */}
-              <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
-                 <h4 className="text-sm font-medium text-slate-800 mb-1">Unused capacity</h4>
-                 <div className="text-lg font-bold text-slate-900 mb-2">0 / 18 VM instances</div>
-                 <p className="text-xs text-slate-500 leading-relaxed">
-                    0% of your reservation is not being put to use. <a href="#" className="text-[#1a73e8] hover:underline inline-flex items-center gap-0.5">Learn more <ExternalLink size={10} /></a>
-                 </p>
-              </div>
+            {/* Summary Dashboard Card */}
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+               {renderDashboardCard()}
+            </div>
+         </div>
 
-              {/* Maintenance Card */}
-              <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
-                 <div className="flex items-center gap-1.5 mb-1">
-                    <h4 className="text-sm font-medium text-slate-800">Maintenance</h4>
-                    <HelpCircle size={14} className="text-slate-400 cursor-help" />
-                 </div>
-                 <div className="flex items-center gap-2 text-violet-600 font-bold text-sm mb-2">
-                    <AlertTriangle size={18} /> 47 VMs Pending
-                 </div>
-                 <p className="text-xs text-slate-500 leading-relaxed">
-                    Updates scheduled for next window. <a href="#" className="text-[#1a73e8] hover:underline">View schedule</a>
-                 </p>
-              </div>
-           </div>
+         {/* Combined Summary Block */}
+         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            {/* VMs Used Section */}
+            <div className="flex items-center gap-6">
+               <div className="relative w-20 h-20 flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                     <PieChart>
+                        <Pie 
+                          data={[{value: 100}]} 
+                          innerRadius={32} 
+                          outerRadius={40} 
+                          dataKey="value" 
+                          startAngle={90} 
+                          endAngle={-270} 
+                          stroke="none"
+                        >
+                           <Cell fill="#1a73e8" />
+                        </Pie>
+                     </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                     <span className="text-lg font-bold text-slate-800">{reconciledMetrics.nodesWithVM}</span>
+                     <span className="text-[9px] text-slate-500 uppercase font-bold">Used</span>
+                  </div>
+               </div>
+               <div>
+                  <h4 className="text-sm font-medium text-slate-800 mb-1">VMs used</h4>
+                  <p className="text-xs text-slate-500">Compute Engine and GKE</p>
+               </div>
+            </div>
 
-           {/* Details Tables Section */}
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Reservation Basics */}
-              <div>
-                 <h3 className="text-lg font-medium text-slate-900 mb-4">Reservation basics</h3>
-                 <div className="border border-slate-200 rounded overflow-hidden">
-                    <table className="w-full text-sm">
-                       <tbody className="divide-y divide-slate-100">
-                          {[
-                            { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
-                            { label: 'Assured count', value: '17' },
-                            { label: 'Creation time', value: 'January 7, 2026, 9:05 AM' },
-                            { label: 'Auto-delete time', value: 'February 6, 2026, 12:00 AM' },
-                            { label: 'Location', value: 'us-west8-a' },
-                            { label: 'Number of subblocks', value: '1' },
-                            { label: 'Health status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-xs border border-amber-200"><AlertTriangle size={12} /> Degraded</span> },
-                            { label: 'Healthy subblocks', value: '0' },
-                            { label: 'Degraded subblocks', value: '1' },
-                            { label: 'Deployment type', value: 'Dense' },
-                            { label: 'Maintenance mode', value: 'Grouped' },
-                            { label: 'Operational mode', value: 'All capacity' },
-                            { label: 'Description', value: '-' },
-                            { label: 'Linked Commitments', value: '-' },
-                            { label: 'Share with other Google services', value: <div className="flex items-center justify-between w-full"><span>No</span> <Pencil size={14} className="text-[#1a73e8] cursor-pointer" /></div> },
-                            { label: 'Share type', value: 'Local' },
-                            { label: 'Shared with', value: '-' },
-                            { label: 'Use with VM instance', value: 'Specific' },
-                          ].map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                               <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
-                               <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
-                            </tr>
-                          ))}
-                       </tbody>
-                    </table>
-                 </div>
-              </div>
+            {/* Unused Capacity Section */}
+            <div className="md:pl-8 pt-6 md:pt-0">
+               <h4 className="text-sm font-medium text-slate-800 mb-1">Unused capacity</h4>
+               <div className="text-lg font-bold text-slate-900 mb-1">{reconciledMetrics.emptyNodes} / {reconciledMetrics.totalNodes} instances</div>
+               <p className="text-xs text-slate-500">
+                  {Math.round((reconciledMetrics.emptyNodes / reconciledMetrics.totalNodes) * 100)}% not in use. <a href="#" className="text-[#1a73e8] hover:underline inline-flex items-center gap-0.5">Learn more <ExternalLink size={10} /></a>
+               </p>
+            </div>
 
-              {/* Configuration Details */}
-              <div className="space-y-8">
-                 <div>
-                    <h3 className="text-lg font-medium text-slate-900 mb-4">Configuration details</h3>
-                    <div className="border border-slate-200 rounded overflow-hidden">
-                       <table className="w-full text-sm">
-                          <tbody className="divide-y divide-slate-100">
-                             {[
-                               { label: 'Number of VM instances', value: '18' },
-                               { label: 'VMs in use', value: '18' },
-                               { label: 'Machine type', value: 'a4x-highgpu-4g' },
-                               { label: 'vCPUs', value: '140' },
-                               { label: 'Memory', value: '884 GB' },
-                               { label: 'Min CPU Platform', value: 'Automatic' },
-                               { label: 'Placement policy', value: '-' },
-                             ].map((row, idx) => (
-                               <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                  <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
-                                  <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
-                               </tr>
-                             ))}
-                             {/* Accelerators Sub-header */}
-                             <tr className="bg-slate-50/50">
-                                <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Accelerators</td>
-                             </tr>
-                             {[
-                               { label: 'Accelerator type', value: 'GB200' },
-                               { label: 'Accelerator count', value: '4' },
-                             ].map((row, idx) => (
-                               <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                  <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
-                                  <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
-                               </tr>
-                             ))}
-                             {/* Local SSDs Sub-header */}
-                             <tr className="bg-slate-50/50">
-                                <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Local SSDs</td>
-                             </tr>
-                             {[
-                               { label: 'Local SSD count', value: '4' },
-                               { label: 'Interface', value: 'NVME' },
-                             ].map((row, idx) => (
-                               <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                  <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
-                                  <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
-                               </tr>
-                             ))}
-                          </tbody>
-                       </table>
-                    </div>
-                 </div>
-              </div>
-           </div>
+            {/* Maintenance Section */}
+            <div className="md:pl-8 pt-6 md:pt-0">
+               <div className="flex items-center gap-1.5 mb-1">
+                  <h4 className="text-sm font-medium text-slate-800">Maintenance</h4>
+                  <HelpCircle size={14} className="text-slate-400 cursor-help" />
+               </div>
+               <p className="text-xs text-slate-500 leading-relaxed">
+                  Updates scheduled for next window. <a href="#" className="text-[#1a73e8] hover:underline font-medium">View schedule</a>
+               </p>
+            </div>
+         </div>
 
-           {/* Link to Topology */}
-           <div className="pt-8 border-t border-slate-100">
-              <button 
-                onClick={() => setMainTab('TOPOLOGY')}
-                className="flex items-center gap-2 text-[#1a73e8] font-bold text-sm hover:underline group"
-              >
-                View physical resource topology <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-              </button>
-              <p className="text-xs text-slate-500 mt-1">
-                Explore the physical location and health status of all reserved resources in the interactive topology view.
-              </p>
-           </div>
-        </div>
-      ) : (
-        <>
-          {/* Filters & Actions */}
-          <div className="flex flex-col md:flex-row gap-4 justify-end items-start md:items-end animate-fadeIn">
-          <div className="flex bg-white rounded border border-[#1967D2]/20 shadow-sm overflow-hidden">
-             {/* Utilization and Maintenance tabs removed as per request */}
-          </div>
-      </div>
+         {/* Collapsible Details Sections */}
+         <div className="space-y-4">
+            {/* Reservation Basics Collapsible */}
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+               <button 
+                 onClick={() => setBasicsOpen(!basicsOpen)}
+                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+               >
+                  <h3 className="text-lg font-medium text-slate-900">Reservation basics</h3>
+                  <ChevronDown size={20} className={`text-slate-400 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
+               </button>
+               {basicsOpen && (
+                  <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
+                     <div className="border border-slate-200 rounded overflow-hidden mt-4">
+                        <table className="w-full text-sm">
+                           <tbody className="divide-y divide-slate-100">
+                              {[
+                                { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
+                                { label: 'Assured count', value: '17' },
+                                { label: 'Creation time', value: 'January 7, 2026, 9:05 AM' },
+                                { label: 'Auto-delete time', value: 'February 6, 2026, 12:00 AM' },
+                                { label: 'Location', value: 'us-west8-a' },
+                                { label: 'Number of subblocks', value: '1' },
+                                { label: 'Health status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-xs border border-amber-200"><AlertTriangle size={12} /> Degraded</span> },
+                                { label: 'Healthy subblocks', value: '0' },
+                                { label: 'Degraded subblocks', value: '1' },
+                                { label: 'Deployment type', value: 'Dense' },
+                                { label: 'Maintenance mode', value: 'Grouped' },
+                                { label: 'Operational mode', value: 'All capacity' },
+                                { label: 'Description', value: '-' },
+                                { label: 'Linked Commitments', value: '-' },
+                                { label: 'Share with other Google services', value: <div className="flex items-center justify-between w-full"><span>No</span> <Pencil size={14} className="text-[#1a73e8] cursor-pointer" /></div> },
+                                { label: 'Share type', value: 'Local' },
+                                { label: 'Shared with', value: '-' },
+                                { label: 'Use with VM instance', value: 'Specific' },
+                              ].map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                   <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                                   <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                                </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               )}
+            </div>
 
-      {/* Summary Dashboard Card */}
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
-          {renderDashboardCard()}
-          
-          {/* Legend Footer */}
-          <div className="px-4 py-3 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50 rounded-b-lg">
-             <div className="flex gap-4 text-[10px] font-medium">
-                 <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
-                    <div className="w-3 h-2.5 bg-slate-400 rounded-[1px]" />
-                    <span>With VM</span>
-                    <div className="w-3 h-2.5 border border-slate-400 rounded-[1px] ml-1" />
-                    <span>No VM</span>
-                 </div>
-                 {viewMode === 'HEALTH' && (
-                    <>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-300"/> Healthy</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending Maint</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#78350f]"/> Pending Repair</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/> Degraded</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"/> Unhealthy</div>
-                    </>
-                 )}
-                 {viewMode === 'UTILIZATION' && (
-                    <>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-300"/> 0%-40%</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400"/> 40%-80%</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> 80%-100%</div>
-                    </>
-                 )}
-                 {viewMode === 'MAINTENANCE' && (
-                    <>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> Up-to-date</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/> Update available</div>
-                      <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-pink-500"/> In progress</div>
-                    </>
-                 )}
-             </div>
+            {/* Configuration Details Collapsible */}
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+               <button 
+                 onClick={() => setConfigOpen(!configOpen)}
+                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+               >
+                  <h3 className="text-lg font-medium text-slate-900">Configuration details</h3>
+                  <ChevronDown size={20} className={`text-slate-400 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
+               </button>
+               {configOpen && (
+                  <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
+                     <div className="border border-slate-200 rounded overflow-hidden mt-4">
+                        <table className="w-full text-sm">
+                           <tbody className="divide-y divide-slate-100">
+                              {[
+                                { label: 'Number of VM instances', value: reconciledMetrics.totalNodes.toString() },
+                                { label: 'VMs in use', value: reconciledMetrics.nodesWithVM.toString() },
+                                { label: 'Machine type', value: 'a4x-highgpu-4g' },
+                                { label: 'vCPUs', value: '140' },
+                                { label: 'Memory', value: '884 GB' },
+                                { label: 'Min CPU Platform', value: 'Automatic' },
+                                { label: 'Placement policy', value: '-' },
+                              ].map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                   <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                                   <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                                </tr>
+                              ))}
+                              {/* Accelerators Sub-header */}
+                              <tr className="bg-slate-50/50">
+                                 <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Accelerators</td>
+                              </tr>
+                              {[
+                                { label: 'Accelerator type', value: 'GB200' },
+                                { label: 'Accelerator count', value: '4' },
+                              ].map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                   <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                                   <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                                </tr>
+                              ))}
+                              {/* Local SSDs Sub-header */}
+                              <tr className="bg-slate-50/50">
+                                 <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Local SSDs</td>
+                              </tr>
+                              {[
+                                { label: 'Local SSD count', value: '4' },
+                                { label: 'Interface', value: 'NVME' },
+                              ].map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                   <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                                   <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                                </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               )}
+            </div>
+         </div>
 
-             <div className="flex gap-3">
-                {viewMode === 'HEALTH' && (
-                  <>
-                  </>
-                )}
-                {viewMode === 'UTILIZATION' && (
+         {/* Physical Resource Topology - Node Map Section */}
+         <div className="pt-8 border-t border-slate-100 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+               <h3 className="text-lg font-medium text-slate-900">Topology</h3>
+               
+               {/* Legend Footer */}
+               <div className="flex flex-wrap gap-4 text-[10px] font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
+                     <div className="w-3 h-2.5 bg-slate-400 rounded-[1px]" />
+                     <span>With VM</span>
+                     <div className="w-3 h-2.5 border border-slate-400 rounded-[1px] ml-1" />
+                     <span>No VM</span>
+                  </div>
+                  {viewMode === 'HEALTH' && (
+                     <>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-300"/> Healthy</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending Maint</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#78350f]"/> Pending Repair</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/> Degraded</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"/> Unhealthy</div>
+                     </>
+                  )}
+                  {viewMode === 'UTILIZATION' && (
+                     <>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-300"/> 0%-40%</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400"/> 40%-80%</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> 80%-100%</div>
+                     </>
+                  )}
+                  {viewMode === 'MAINTENANCE' && (
+                     <>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> Up-to-date</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/> Update available</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-pink-500"/> In progress</div>
+                     </>
+                  )}
+               </div>
+            </div>
+            
+            {/* Action Buttons (Moved from footer) */}
+            <div className="flex justify-end gap-3 mb-2">
+               {viewMode === 'UTILIZATION' && (
                   <>
                      <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Plus size={12} /> Add capacity</button>
                      <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><SkipForward size={12} className="fill-[#1967D2]" /> Replace stragglers</button>
                   </>
-                )}
-                {viewMode === 'MAINTENANCE' && (
-                   <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Play size={12} className="fill-[#1967D2]" /> Start all maintenance now</button>
-                )}
-             </div>
-          </div>
-      </div>
+               )}
+               {viewMode === 'MAINTENANCE' && (
+                  <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Play size={12} className="fill-[#1967D2]" /> Start all maintenance now</button>
+               )}
+            </div>
+            
+            {/* Blocks List */}
+               <div className="space-y-3">
+                  {blocks.map((sb, originalSbIdx) => ({ sb, originalSbIdx }))
+                   .filter(({ sb, originalSbIdx }) => {
+                     if (blockFilter === 'ALL') return true;
+                     const isHealthy = sb.subblocks.every((block, bIdx) => 
+                        block.nodes.every((_, nIdx) => {
+                           const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
+                           const hasVM = key % 7 !== 0;
+                           if (!hasVM) return true;
+                           return getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
+                        })
+                     );
+                     return blockFilter === 'HEALTHY' ? isHealthy : !isHealthy;
+                   })
+                   .map(({ sb, originalSbIdx }) => {
+                     const sbMaint = sb.subblocks.flatMap((b, bIdx) => 
+                       b.nodes.map((_, nIdx) => getNodeColor(originalSbIdx, bIdx, nIdx, 'MAINTENANCE'))
+                     );
+                     const sbUpToDate = sbMaint.filter(c => c === COLORS.maintenance.uptodate).length;
+                     const sbAvailable = sbMaint.filter(c => c === COLORS.maintenance.available).length;
+                     const sbInProgress = sbMaint.filter(c => c === COLORS.maintenance.inprogress).length;
 
-      {/* Blocks List */}
-      <div className="space-y-3">
-         {blocks.map((sb, sbIdx) => {
-            const sbMaint = sb.subblocks.flatMap((b, bIdx) => 
-              b.nodes.map((_, nIdx) => getNodeColor(sbIdx, bIdx, nIdx, 'MAINTENANCE'))
-            );
-            const sbUpToDate = sbMaint.filter(c => c === COLORS.maintenance.uptodate).length;
-            const sbAvailable = sbMaint.filter(c => c === COLORS.maintenance.available).length;
-            const sbInProgress = sbMaint.filter(c => c === COLORS.maintenance.inprogress).length;
-
-            return (
-            <div key={sb.id} className="bg-white border border-slate-200 rounded-lg shadow-sm transition-all">
-               {/* Header */}
-               <div 
-                 onClick={() => toggleBlock(sb.id)}
-                 className={`px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none rounded-t-lg ${!sb.isOpen ? 'rounded-b-lg' : ''}`}
-               >
-                  <div className="flex items-center gap-2">
-                     <h3 className="text-sm font-medium text-slate-900">{sb.label}</h3>
-                     <ChevronDown size={16} className={`text-slate-400 transition-transform ${sb.isOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                  
-                  {/* Right Actions */}
-                  {sb.isOpen ? (
-                     <div className="flex gap-4">
-                        {viewMode === 'UTILIZATION' && (
-                           <>
-                             <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Plus size={12} /> Add capacity</button>
-                             <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><SkipForward size={10} className="fill-[#1967D2]" /> Replace stragglers</button>
-                           </>
-                        )}
-                         {viewMode === 'MAINTENANCE' && (
-                             <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Play size={10} className="fill-[#1967D2]" /> Start maintenance</button>
-                        )}
-                     </div>
-                  ) : (
-                     // Collapsed Summary
-                     <div className="flex items-center gap-4 text-[10px] font-bold">
-                        {viewMode === 'MAINTENANCE' ? (
-                          <>
-                            <div className="flex items-center gap-1 text-blue-600">
-                               <Shield size={12} className="fill-blue-50" /> Up-to-date: {sbUpToDate} VMs
-                            </div>
-                            {sbAvailable > 0 && (
-                               <div className="flex items-center gap-1 text-amber-600">
-                                   <RefreshCw size={12} className="animate-spin-slow" /> Available: {sbAvailable} VMs
-                               </div>
-                            )}
-                            {sbInProgress > 0 && (
-                               <div className="flex items-center gap-1 text-pink-600">
-                                   <Play size={12} className="fill-pink-50" /> In progress: {sbInProgress} VMs
-                               </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-1 text-cyan-600">
-                               <Shield size={12} className="fill-cyan-50" /> Healthy: {sb.healthyCount} VMs
-                            </div>
-                            {sb.degradedCount > 0 && (
-                               <div className="flex items-center gap-1 text-amber-600">
-                                   <AlertTriangle size={12} className="fill-amber-50" /> Degraded: {sb.degradedCount} VMs
-                               </div>
-                            )}
-                            {sb.unhealthyCount > 0 && (
-                               <div className="flex items-center gap-1 text-rose-600">
-                                   <AlertOctagon size={12} className="fill-rose-50" /> Unhealthy: {sb.unhealthyCount} VMs
-                               </div>
-                            )}
-                          </>
-                        )}
-                        {viewMode === 'MAINTENANCE' && sb.id === 'sb2' && (
-                            <div className="flex items-center gap-1 text-rose-600">
-                                <AlertOctagon size={12} className="fill-rose-100" /> Unplanned: 2 VMs
-                            </div>
-                        )}
-                     </div>
-                  )}
-               </div>
-
-               {/* Content */}
-               {sb.isOpen && (
-                 <div className="px-4 pb-4 pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {sb.subblocks.map((block, blockIdx) => {
-                       const blockHealth = block.nodes.map((_, nodeIdx) => getNodeColor(sbIdx, blockIdx, nodeIdx, 'HEALTH'));
-                       const hCount = blockHealth.filter(c => c === COLORS.health.healthy).length;
-                       const dCount = blockHealth.filter(c => c === COLORS.health.suspected).length;
-                       const uCount = blockHealth.filter(c => c === COLORS.health.unhealthy).length;
-
-                       const blockMaint = block.nodes.map((_, nodeIdx) => getNodeColor(sbIdx, blockIdx, nodeIdx, 'MAINTENANCE'));
-                       const mUpToDate = blockMaint.filter(c => c === COLORS.maintenance.uptodate).length;
-                       const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
-                       const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
-
-                       return (
-                        <div key={block.id}>
-                           <div className="flex justify-between items-center mb-1.5">
-                              <h5 className="text-[10px] text-slate-500">{block.label}</h5>
-                              <div className="flex gap-2 text-[9px] font-bold">
+                     return (
+                     <div key={sb.id} className="bg-white border border-slate-200 rounded-lg shadow-sm transition-all">
+                        {/* Header */}
+                        <div 
+                          onClick={() => toggleBlock(sb.id)}
+                          className={`px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none rounded-t-lg ${!sb.isOpen ? 'rounded-b-lg' : ''}`}
+                        >
+                           <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-medium text-slate-900">{sb.label}</h3>
+                              <ChevronDown size={16} className={`text-slate-400 transition-transform ${sb.isOpen ? 'rotate-180' : ''}`} />
+                           </div>
+                           
+                           {/* Right Actions */}
+                           {sb.isOpen ? (
+                              <div className="flex gap-4">
+                                 {viewMode === 'UTILIZATION' && (
+                                    <>
+                                      <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Plus size={12} /> Add capacity</button>
+                                      <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><SkipForward size={10} className="fill-[#1967D2]" /> Replace stragglers</button>
+                                    </>
+                                 )}
+                                  {viewMode === 'MAINTENANCE' && (
+                                      <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Play size={10} className="fill-[#1967D2]" /> Start maintenance</button>
+                                 )}
+                              </div>
+                           ) : (
+                              // Collapsed Summary
+                              <div className="flex items-center gap-4 text-[10px] font-bold">
                                  {viewMode === 'MAINTENANCE' ? (
                                    <>
-                                     <span className="text-blue-600">U: {mUpToDate}</span>
-                                     {mAvailable > 0 && <span className="text-amber-600">A: {mAvailable}</span>}
-                                     {mInProgress > 0 && <span className="text-pink-600">P: {mInProgress}</span>}
+                                     <div className="flex items-center gap-1 text-blue-600">
+                                        <Shield size={12} className="fill-blue-50" /> Up-to-date: {sbUpToDate} VMs
+                                     </div>
+                                     {sbAvailable > 0 && (
+                                        <div className="flex items-center gap-1 text-amber-600">
+                                            <RefreshCw size={12} className="animate-spin-slow" /> Available: {sbAvailable} VMs
+                                        </div>
+                                     )}
+                                     {sbInProgress > 0 && (
+                                        <div className="flex items-center gap-1 text-pink-600">
+                                            <Play size={12} className="fill-pink-50" /> In progress: {sbInProgress} VMs
+                                        </div>
+                                     )}
                                    </>
                                  ) : (
                                    <>
-                                     <span className="text-cyan-600">H: {hCount}</span>
-                                     {dCount > 0 && <span className="text-amber-600">D: {dCount}</span>}
-                                     {uCount > 0 && <span className="text-rose-600">U: {uCount}</span>}
+                                     <div className="flex items-center gap-1 text-cyan-600">
+                                        <Shield size={12} className="fill-cyan-50" /> Healthy: {sb.healthyCount} VMs
+                                     </div>
+                                     {sb.degradedCount > 0 && (
+                                        <div className="flex items-center gap-1 text-amber-600">
+                                            <AlertTriangle size={12} className="fill-amber-50" /> Degraded: {sb.degradedCount} VMs
+                                        </div>
+                                     )}
+                                     {sb.unhealthyCount > 0 && (
+                                        <div className="flex items-center gap-1 text-rose-600">
+                                            <AlertOctagon size={12} className="fill-rose-50" /> Unhealthy: {sb.unhealthyCount} VMs
+                                        </div>
+                                     )}
                                    </>
                                  )}
+                                 {viewMode === 'MAINTENANCE' && sb.id === 'sb2' && (
+                                     <div className="flex items-center gap-1 text-rose-600">
+                                         <AlertOctagon size={12} className="fill-rose-100" /> Unplanned: 2 VMs
+                                     </div>
+                                 )}
                               </div>
-                           </div>
-                           <div className="flex flex-wrap gap-1">
-                              {block.nodes.map((_, nodeIdx) => {
-                                const color = getNodeColor(sbIdx, blockIdx, nodeIdx, viewMode);
-                                const isSelected = selectedNode?.sbId === sb.id && selectedNode?.blockId === block.id && selectedNode?.nodeIdx === nodeIdx;
-                                const hasVM = (nodeIdx + blockIdx * 18 + sbIdx * 36) % 7 !== 0;
-                                const isPendingMaint = getNodeColor(sbIdx, blockIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.pending;
-                                
-                                let status: any;
-                                if (viewMode === 'HEALTH') {
-                                  status = color === COLORS.health.unhealthy ? 'unhealthy' : 
-                                           color === COLORS.health.suspected ? 'degraded' : 'healthy';
-                                } else if (viewMode === 'MAINTENANCE') {
-                                  status = color === COLORS.maintenance.inprogress ? 'inprogress' :
-                                           color === COLORS.maintenance.available ? 'available' : 
-                                           color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
-                                } else {
-                                  status = 'healthy';
-                                }
-                                
-                                return (
-                                  <div 
-                                    key={nodeIdx}
-                                    className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
-                                    style={{ 
-                                      background: hasVM 
-                                        ? (isPendingMaint && viewMode === 'HEALTH' 
-                                            ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` 
-                                            : ((nodeIdx + blockIdx * 18 + sbIdx * 36) % 13 === 5 && viewMode === 'HEALTH'
-                                               ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)`
-                                               : color))
-                                        : 'transparent',
-                                      border: hasVM ? 'none' : `1.5px solid ${color}`
-                                    }}
-                                    title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}${(nodeIdx + blockIdx * 18 + sbIdx * 36) % 13 === 5 ? ' (Pending Repair)' : ''}`}
-                                    onClick={() => {
-                                      if (isSelected) setSelectedNode(null);
-                                      else {
-                                        const isPendingRepair = (nodeIdx + blockIdx * 18 + sbIdx * 36) % 13 === 5;
-                                        setSelectedNode({ 
-                                          sbId: sb.id, 
-                                          blockId: block.id, 
-                                          nodeIdx, 
-                                          status, 
-                                          hasVM, 
-                                          repairStatus: isPendingRepair ? 'pending' : 'none' 
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    {!hasVM && <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />}
-                                  </div>
-                                );
-                              })}
-                           </div>
+                           )}
                         </div>
-                       );
-                    })}
 
-                    {/* Inline Health Detail */}
-                    {selectedNode && selectedNode.sbId === sb.id && viewMode === 'HEALTH' && (
-                      <UnifiedNodeDetail 
-                        nodeIdx={selectedNode.nodeIdx} 
-                        blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
-                        healthStatus={selectedNode.status}
-                        maintStatus={(() => {
-                          const color = getNodeColor(sbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
-                          return color === COLORS.maintenance.inprogress ? 'inprogress' :
-                                 color === COLORS.maintenance.available ? 'available' : 
-                                 color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
-                        })()}
-                        repairStatus={selectedNode.repairStatus}
-                        hasVM={selectedNode.hasVM}
-                        onJobClick={onJobClick}
-                      />
-                    )}
+                        {/* Content */}
+                        {sb.isOpen && (
+                          <div className="px-4 pb-4 pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                             {sb.subblocks.map((block, bIdx) => ({ block, bIdx }))
+                              .filter(({ block, bIdx }) => {
+                                if (subblockFilter === 'ALL') return true;
+                                let healthyNodesCount = 0;
+                                block.nodes.forEach((_, nIdx) => {
+                                  const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
+                                  const hasVM = key % 7 !== 0;
+                                  if (!hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy) {
+                                    healthyNodesCount++;
+                                  }
+                                });
+                                if (subblockFilter === 'HEALTHY') return healthyNodesCount === 18;
+                                if (subblockFilter === 'SCHEDULABLE') return healthyNodesCount >= 16 && healthyNodesCount < 18;
+                                if (subblockFilter === 'UNHEALTHY') return healthyNodesCount < 16;
+                                return true;
+                              })
+                              .map(({ block, bIdx }) => {
+                                const healthyNodesCount = block.nodes.filter((_, nIdx) => {
+                                  const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
+                                  const hasVM = key % 7 !== 0;
+                                  return !hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
+                                }).length;
+                                
+                                const subblockStatus = healthyNodesCount === 18 ? 'HEALTHY' : 
+                                                       healthyNodesCount >= 16 ? 'SCHEDULABLE' : 'UNHEALTHY';
 
-                    {/* Inline Maintenance Detail */}
-                    {selectedNode && selectedNode.sbId === sb.id && viewMode === 'MAINTENANCE' && (
-                      <NodeMaintenanceDetail 
-                        nodeIdx={selectedNode.nodeIdx} 
-                        blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
-                        status={selectedNode.status}
-                      />
-                    )}
-                 </div>
-               )}
-            </div>
-          );
-         })}
+                                const blockHealth = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH'));
+                                const hCount = blockHealth.filter(c => c === COLORS.health.healthy).length;
+                                const dCount = blockHealth.filter(c => c === COLORS.health.suspected).length;
+                                const uCount = blockHealth.filter(c => c === COLORS.health.unhealthy).length;
+
+                                const blockMaint = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE'));
+                                const mUpToDate = blockMaint.filter(c => c === COLORS.maintenance.uptodate).length;
+                                const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
+                                const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
+
+                                return (
+                                 <div key={block.id}>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                       <div className="flex items-center gap-1.5">
+                                          <h5 className="text-[10px] text-slate-500">{block.label}</h5>
+                                          {subblockStatus === 'SCHEDULABLE' && (
+                                             <span className="text-[8px] px-1 bg-amber-100 text-amber-700 rounded font-bold uppercase">Schedulable</span>
+                                          )}
+                                          {subblockStatus === 'UNHEALTHY' && (
+                                             <span className="text-[8px] px-1 bg-rose-100 text-rose-700 rounded font-bold uppercase">Unhealthy</span>
+                                          )}
+                                       </div>
+                                       <div className="flex gap-2 text-[9px] font-bold">
+                                          {viewMode === 'MAINTENANCE' ? (
+                                            <>
+                                              <span className="text-blue-600">U: {mUpToDate}</span>
+                                              {mAvailable > 0 && <span className="text-amber-600">A: {mAvailable}</span>}
+                                              {mInProgress > 0 && <span className="text-pink-600">P: {mInProgress}</span>}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span className="text-cyan-600">H: {hCount}</span>
+                                              {dCount > 0 && <span className="text-amber-600">D: {dCount}</span>}
+                                              {uCount > 0 && <span className="text-rose-600">U: {uCount}</span>}
+                                            </>
+                                          )}
+                                       </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                       {block.nodes.map((_, nodeIdx) => {
+                                         const color = getNodeColor(originalSbIdx, bIdx, nodeIdx, viewMode);
+                                         const isSelected = selectedNode?.sbId === sb.id && selectedNode?.blockId === block.id && selectedNode?.nodeIdx === nodeIdx;
+                                         const hasVM = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 7 !== 0;
+                                         const isPendingMaint = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.pending;
+                                         
+                                         let status: any;
+                                         if (viewMode === 'HEALTH') {
+                                           status = color === COLORS.health.unhealthy ? 'unhealthy' : 
+                                                    color === COLORS.health.suspected ? 'degraded' : 'healthy';
+                                         } else if (viewMode === 'MAINTENANCE') {
+                                           status = color === COLORS.maintenance.inprogress ? 'inprogress' :
+                                                    color === COLORS.maintenance.available ? 'available' : 
+                                                    color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
+                                         } else {
+                                           status = 'healthy';
+                                         }
+                                         
+                                         return (
+                                           <div 
+                                             key={nodeIdx}
+                                             className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
+                                             style={{ 
+                                               background: hasVM 
+                                                 ? (isPendingMaint && viewMode === 'HEALTH' 
+                                                     ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` 
+                                                     : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5 && viewMode === 'HEALTH'
+                                                        ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)`
+                                                        : color))
+                                                 : 'transparent',
+                                               border: hasVM ? 'none' : `1.5px solid ${color}`
+                                             }}
+                                             title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}${(nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5 ? ' (Pending Repair)' : ''}`}
+                                             onClick={() => {
+                                               if (isSelected) setSelectedNode(null);
+                                               else {
+                                                 const isPendingRepair = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5;
+                                                 setSelectedNode({ 
+                                                   sbId: sb.id, 
+                                                   blockId: block.id, 
+                                                   nodeIdx, 
+                                                   status, 
+                                                   hasVM, 
+                                                   repairStatus: isPendingRepair ? 'pending' : 'none' 
+                                                 });
+                                               }
+                                             }}
+                                           >
+                                             {!hasVM && <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />}
+                                           </div>
+                                         );
+                                       })}
+                                    </div>
+                                 </div>
+                                );
+                             })}
+
+                             {/* Inline Health Detail */}
+                             {selectedNode && selectedNode.sbId === sb.id && viewMode === 'HEALTH' && (
+                               <UnifiedNodeDetail 
+                                 nodeIdx={selectedNode.nodeIdx} 
+                                 blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
+                                 healthStatus={selectedNode.status}
+                                 maintStatus={(() => {
+                                   const color = getNodeColor(originalSbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
+                                   return color === COLORS.maintenance.inprogress ? 'inprogress' :
+                                          color === COLORS.maintenance.available ? 'available' : 
+                                          color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
+                                 })()}
+                                 repairStatus={selectedNode.repairStatus}
+                                 hasVM={selectedNode.hasVM}
+                                 onJobClick={onJobClick}
+                               />
+                             )}
+
+                             {/* Inline Maintenance Detail */}
+                             {selectedNode && selectedNode.sbId === sb.id && viewMode === 'MAINTENANCE' && (
+                               <NodeMaintenanceDetail 
+                                 nodeIdx={selectedNode.nodeIdx} 
+                                 blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
+                                 status={selectedNode.status}
+                               />
+                             )}
+                          </div>
+                        )}
+                     </div>
+                     );
+                  })}
+               </div>
+         </div>
       </div>
-    </>
-  )}
-</div>
+   </div>
 );
 };

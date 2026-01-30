@@ -102,7 +102,7 @@ export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick
              {/* 2. Minimap with Inline Legend */}
              <div className="shrink-0 flex gap-2 bg-slate-50 p-1.5 rounded border border-slate-100">
                 <div>
-                   <div className="text-[8px] font-bold text-slate-400 uppercase mb-1 text-center tracking-wider">Node map</div>
+                   <div className="text-[8px] font-bold text-slate-400 uppercase mb-1 text-center tracking-wider">Topology</div>
                    <div className="grid grid-cols-8 gap-px bg-white p-0.5 border border-slate-200 rounded-sm shadow-sm">
                        {nodes.map((status, i) => (
                          <div 
