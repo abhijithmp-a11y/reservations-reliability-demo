@@ -707,6 +707,16 @@ export const ClusterDirectorV2: React.FC<{
   const [configOpen, setConfigOpen] = useState(false);
   const [blockFilter, setBlockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [subblockFilter, setSubblockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY' | 'SCHEDULABLE'>('ALL');
+  const [expandedSubblocks, setExpandedSubblocks] = useState<Set<string>>(new Set());
+
+  const toggleSubblock = (id: string) => {
+    setExpandedSubblocks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   
   const [selectedNode, setSelectedNode] = useState<{ 
     sbId: string; 
@@ -1387,276 +1397,41 @@ export const ClusterDirectorV2: React.FC<{
                   </div>
                </div>
                {renderDashboardCard()}
-
-               {/* Physical Resource Topology - Node Map Section (Now inside the card) */}
-               <div className="p-6 border-t border-slate-100 space-y-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                     <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Topology</h4>
-                     
-                     {/* Legend Footer */}
-                      <div className="flex flex-wrap gap-4 text-[10px] font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                        <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
-                           <div className="w-3 h-2.5 bg-slate-400 rounded-[1px]" />
-                           <span>With VM</span>
-                           <div className="w-3 h-2.5 border border-slate-400 rounded-[1px] ml-1" />
-                           <span>No VM</span>
-                        </div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-300"/> Healthy</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending Maint</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#78350f]"/> Pending Repair</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#451a03]"/> In Repair</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/> Degraded</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"/> Unhealthy</div>
-                      </div>
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex justify-end gap-3">
-                     {viewMode === 'UTILIZATION' && (
-                        <>
-                           <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Plus size={12} /> Add capacity</button>
-                           <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><SkipForward size={12} className="fill-[#1967D2]" /> Replace stragglers</button>
-                        </>
-                     )}
-                     {viewMode === 'MAINTENANCE' && (
-                        <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Play size={12} className="fill-[#1967D2]" /> Start all maintenance now</button>
-                     )}
-                  </div>
-                  
-                  {/* Blocks List */}
-                  <div className="space-y-3">
-                     {blocks.map((sb, originalSbIdx) => ({ sb, originalSbIdx }))
-                      .filter(({ sb, originalSbIdx }) => {
-                        if (blockFilter === 'ALL') return true;
-                        const isHealthy = sb.subblocks.every((block, bIdx) => 
-                           block.nodes.every((_, nIdx) => {
-                              const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
-                              const hasVM = key % 7 !== 0;
-                              if (!hasVM) return true;
-                              return getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
-                           })
-                        );
-                        return blockFilter === 'HEALTHY' ? isHealthy : !isHealthy;
-                      })
-                      .map(({ sb, originalSbIdx }) => {
-                        const sbMaint = sb.subblocks.flatMap((b, bIdx) => 
-                          b.nodes.map((_, nIdx) => getNodeColor(originalSbIdx, bIdx, nIdx, 'MAINTENANCE'))
-                        );
-                        const sbUpToDate = sbMaint.filter(c => c === COLORS.maintenance.uptodate).length;
-                        const sbAvailable = sbMaint.filter(c => c === COLORS.maintenance.available).length;
-                        const sbInProgress = sbMaint.filter(c => c === COLORS.maintenance.inprogress).length;
-
-                        return (
-                        <div key={sb.id} className="bg-white border border-slate-200 rounded-lg shadow-sm transition-all">
-                           {/* Header */}
-                           <div 
-                             onClick={() => toggleBlock(sb.id)}
-                             className={`px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none rounded-t-lg ${!sb.isOpen ? 'rounded-b-lg' : ''}`}
-                           >
-                              <div className="flex items-center gap-2">
-                                 <h3 className="text-sm font-medium text-slate-900">{sb.label}</h3>
-                                  <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1 rounded border border-slate-100">B{originalSbIdx + 1}</span>
-                                 <ChevronDown size={16} className={`text-slate-400 transition-transform ${sb.isOpen ? 'rotate-180' : ''}`} />
-                              </div>
-                              
-                              {/* Right Actions */}
-                              {sb.isOpen ? (
-                                 <div className="flex gap-4">
-                                    {viewMode === 'UTILIZATION' && (
-                                       <>
-                                         <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Plus size={12} /> Add capacity</button>
-                                         <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><SkipForward size={10} className="fill-[#1967D2]" /> Replace stragglers</button>
-                                       </>
-                                    )}
-                                     {viewMode === 'MAINTENANCE' && (
-                                         <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Play size={10} className="fill-[#1967D2]" /> Start maintenance</button>
-                                    )}
-                                 </div>
-                              ) : (
-                                 // Collapsed Summary
-                                 <div className="flex items-center gap-4 text-[10px] font-bold">
-                                    {viewMode === 'MAINTENANCE' ? (
-                                      <>
-                                        <div className="flex items-center gap-1 text-blue-600">
-                                           <Shield size={12} className="fill-blue-50" /> Up-to-date: {sbUpToDate} VMs
-                                        </div>
-                                        {sbAvailable > 0 && (
-                                           <div className="flex items-center gap-1 text-amber-600">
-                                               <RefreshCw size={12} className="animate-spin-slow" /> Available: {sbAvailable} VMs
-                                           </div>
-                                        )}
-                                        {sbInProgress > 0 && (
-                                           <div className="flex items-center gap-1 text-pink-600">
-                                               <Play size={12} className="fill-pink-50" /> In progress: {sbInProgress} VMs
-                                           </div>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <>
-                                        <div className="flex items-center gap-1 text-cyan-600">
-                                           <Shield size={12} className="fill-cyan-50" /> Healthy: {sb.healthyCount} VMs
-                                        </div>
-                                        {sb.degradedCount > 0 && (
-                                           <div className="flex items-center gap-1 text-amber-600">
-                                               <AlertTriangle size={12} className="fill-amber-50" /> Degraded: {sb.degradedCount} VMs
-                                           </div>
-                                        )}
-                                        {sb.unhealthyCount > 0 && (
-                                           <div className="flex items-center gap-1 text-rose-600">
-                                               <AlertOctagon size={12} className="fill-rose-50" /> Unhealthy: {sb.unhealthyCount} VMs
-                                           </div>
-                                        )}
-                                      </>
-                                    )}
-                                 </div>
-                              )}
-                           </div>
-
-                           {/* Content */}
-                           {sb.isOpen && (
-                             <div className="px-4 pb-4 pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {sb.subblocks.map((block, bIdx) => ({ block, bIdx }))
-                                 .filter(({ block, bIdx }) => {
-                                   if (subblockFilter === 'ALL') return true;
-                                   let healthyNodesCount = 0;
-                                   block.nodes.forEach((_, nIdx) => {
-                                     const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
-                                     const hasVM = key % 7 !== 0;
-                                     if (!hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy) {
-                                       healthyNodesCount++;
-                                     }
-                                   });
-                                   if (subblockFilter === 'HEALTHY') return healthyNodesCount === 18;
-                                   if (subblockFilter === 'SCHEDULABLE') return healthyNodesCount >= 16 && healthyNodesCount < 18;
-                                   if (subblockFilter === 'UNHEALTHY') return healthyNodesCount < 16;
-                                   return true;
-                                 })
-                                 .map(({ block, bIdx }) => {
-                                   const healthyNodesCount = block.nodes.filter((_, nIdx) => {
-                                     const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
-                                     const hasVM = key % 7 !== 0;
-                                     return !hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
-                                   }).length;
-                                   
-                                   const subblockStatus = healthyNodesCount === 18 ? 'HEALTHY' : 
-                                                          healthyNodesCount >= 16 ? 'SCHEDULABLE' : 'UNHEALTHY';
-
-                                   const blockHealth = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH'));
-                                   const hCount = blockHealth.filter(c => c === COLORS.health.healthy).length;
-                                   const dCount = blockHealth.filter(c => c === COLORS.health.suspected).length;
-                                   const uCount = blockHealth.filter(c => c === COLORS.health.unhealthy).length;
-
-                                   const blockMaint = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE'));
-                                   const mUpToDate = blockMaint.filter(c => c === COLORS.maintenance.uptodate).length;
-                                   const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
-                                   const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
-
-                                   return (
-                                    <div key={block.id}>
-                                       <div className="flex justify-between items-center mb-1.5">
-                                          <div className="flex items-center gap-1.5">
-                                             <h5 className="text-[10px] text-slate-500">{block.label}</h5>
-                                              <span className="text-[9px] font-mono text-slate-400">B{originalSbIdx + 1}-sb{bIdx + 1}</span>
-                                             {subblockStatus === 'SCHEDULABLE' && (
-                                                <span className="text-[8px] px-1 bg-amber-100 text-amber-700 rounded font-bold uppercase">Schedulable</span>
-                                             )}
-                                             {subblockStatus === 'UNHEALTHY' && (
-                                                <span className="text-[8px] px-1 bg-rose-100 text-rose-700 rounded font-bold uppercase">Unhealthy</span>
-                                             )}
-                                          </div>
-                                          <div className="flex gap-2 text-[9px] font-bold">
-                                             {viewMode === 'MAINTENANCE' ? (
-                                               <>
-                                                 <span className="text-blue-600">U: {mUpToDate}</span>
-                                                 {mAvailable > 0 && <span className="text-amber-600">A: {mAvailable}</span>}
-                                                 {mInProgress > 0 && <span className="text-pink-600">P: {mInProgress}</span>}
-                                               </>
-                                             ) : (
-                                               <>
-                                                 <span className="text-cyan-600">H: {hCount}</span>
-                                                 {dCount > 0 && <span className="text-amber-600">D: {dCount}</span>}
-                                                 {uCount > 0 && <span className="text-rose-600">U: {uCount}</span>}
-                                               </>
-                                             )}
-                                          </div>
-                                       </div>
-                                       <div className="flex flex-wrap gap-1">
-                                          {block.nodes.map((_, nodeIdx) => {
-                                            const color = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH');
-                                            const isSelected = selectedNode?.sbId === sb.id && selectedNode?.blockId === block.id && selectedNode?.nodeIdx === nodeIdx;
-                                            const hasVM = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 7 !== 0;
-                                            const isPendingMaint = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.pending;
-                                            
-                                            const status = color === COLORS.health.unhealthy ? 'unhealthy' : 
-                                                     color === COLORS.health.suspected ? 'degraded' : 'healthy';
-                                            
-                                            return (
-                                              <div 
-                                                key={nodeIdx}
-                                                className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
-                                                style={{ 
-                                                  background: hasVM 
-                                                    ? (isPendingMaint 
-                                                        ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` 
-                                                        : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5
-                                                           ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)`
-                                                           : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 8
-                                                              ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.inprogress} 50%)`
-                                                              : color)))
-                                                    : 'transparent',
-                                                  border: hasVM ? 'none' : `1.5px solid ${color}`
-                                                }}
-                                                title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}${(nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5 ? ' (Pending Repair)' : ''}`}
-                                                onClick={() => {
-                                                  if (isSelected) setSelectedNode(null);
-                                                  else {
-                                                    const isPendingRepair = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5;
-                                                    setSelectedNode({ 
-                                                      sbId: sb.id, 
-                                                      blockId: block.id, 
-                                                      nodeIdx, 
-                                                      status, 
-                                                      hasVM, 
-                                                      repairStatus: isPendingRepair ? 'pending' : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 8 ? 'inprogress' : 'none') 
-                                                    });
-                                                  }
-                                                }}
-                                              >
-                                                {!hasVM && <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />}
-                                              </div>
-                                            );
-                                          })}
-                                       </div>
-                                    </div>
-                                   );
-                                })}
-
-                                {/* Inline Unified Detail */}
-                                {selectedNode && selectedNode.sbId === sb.id && (
-                                  <UnifiedNodeDetail 
-                                    nodeIdx={selectedNode.nodeIdx} 
-                                    blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
-                                    healthStatus={selectedNode.status}
-                                    maintStatus={(() => {
-                                      const color = getNodeColor(originalSbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
-                                      return color === COLORS.maintenance.inprogress ? 'inprogress' :
-                                             color === COLORS.maintenance.available ? 'available' : 
-                                             color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
-                                    })()}
-                                    repairStatus={selectedNode.repairStatus}
-                                    hasVM={selectedNode.hasVM}
-                                    onJobClick={onJobClick}
-                                  />
-                                )}
-                             </div>
-                           )}
-                        </div>
-                        );
-                     })}
-                  </div>
-               </div>
             </div>
          </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                            
+
+
+
 
          {/* Collapsible Details Sections */}
          <div className="space-y-4">
@@ -1765,6 +1540,215 @@ export const ClusterDirectorV2: React.FC<{
                      </div>
                   </div>
                )}
+            </div>
+         </div>
+
+         {/* Physical Resource Topology Section (Moved to bottom) */}
+         <div className="space-y-4">
+            <h3 className="text-lg font-medium text-slate-900">Physical resource topology</h3>
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+               {/* Topology Legend (Moved to top) */}
+               <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-2">Legend:</div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: COLORS.health.healthy }} /> Healthy
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: COLORS.health.suspected }} /> Degraded
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: COLORS.health.unhealthy }} /> Unhealthy
+                    </div>
+                  </div>
+
+                  <div className="h-4 w-px bg-slate-200 mx-1" />
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px]" style={{ background: `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` }} /> Maint. Pending
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px]" style={{ background: `linear-gradient(135deg, ${COLORS.health.unhealthy} 50%, ${COLORS.maintenance.inprogress} 50%)` }} /> Ongoing Maint.
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px]" style={{ background: `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)` }} /> Repair Pending
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                      <div className="w-3 h-3 rounded-[2px] border flex items-center justify-center" style={{ borderColor: COLORS.repair.inprogress }}>
+                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: COLORS.repair.inprogress }} />
+                      </div>
+                      In Repair
+                    </div>
+                  </div>
+
+                  <div className="h-4 w-px bg-slate-200 mx-1" />
+
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                    <div className="w-3 h-3 rounded-[2px] border border-slate-300 flex items-center justify-center">
+                      <div className="w-1 h-1 rounded-full bg-slate-400" />
+                    </div>
+                    Empty (No VM)
+                  </div>
+               </div>
+
+               <div className="p-6">
+                  <div className="grid grid-cols-1 gap-8">
+                    {blocks.map((sb, originalSbIdx) => {
+                      const isExpanded = expandedSubblocks.has(sb.id);
+                      
+                      // Apply filter
+                      const healthyNodesInSb = sb.subblocks.reduce((acc, b) => acc + b.nodes.filter((_, nIdx) => {
+                         const key = (originalSbIdx * 36) + (sb.subblocks.indexOf(b) * 18) + nIdx;
+                         const hasVM = key % 7 !== 0;
+                         return !hasVM || getNodeColor(originalSbIdx, sb.subblocks.indexOf(b), nIdx, 'HEALTH') !== COLORS.health.unhealthy;
+                      }).length, 0);
+                      
+                      const sbStatus = healthyNodesInSb === 36 ? 'HEALTHY' : 
+                                       healthyNodesInSb >= 32 ? 'SCHEDULABLE' : 'UNHEALTHY';
+                                       
+                      if (subblockFilter !== 'ALL' && sbStatus !== subblockFilter) return null;
+
+                      return (
+                        <div key={sb.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm transition-all hover:shadow-md">
+                          <div 
+                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                            onClick={() => toggleSubblock(sb.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${sbStatus === 'HEALTHY' ? 'bg-emerald-500' : sbStatus === 'SCHEDULABLE' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Block</span>
+                                <h4 className="text-sm font-medium text-slate-800">B{originalSbIdx + 1}</h4>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                          </div>
+                          
+                          {isExpanded && (
+                            <div className="p-4 border-t border-slate-100 space-y-6 animate-slideDown">
+                              {sb.subblocks.map((block, bIdx) => {
+                                const blockHealth = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH'));
+                                const hCount = blockHealth.filter(c => c === COLORS.health.healthy).length;
+                                const dCount = blockHealth.filter(c => c === COLORS.health.suspected).length;
+                                const uCount = blockHealth.filter(c => c === COLORS.health.unhealthy).length;
+
+                                const blockMaint = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE'));
+                                const mUpToDate = blockMaint.filter(c => c === COLORS.maintenance.uptodate).length;
+                                const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
+                                const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
+
+                                return (
+                                  <div key={block.id}>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subblock</h5>
+                                        <span className="text-[9px] font-mono text-slate-400">B{originalSbIdx + 1}-sb{bIdx + 1}</span>
+                                      </div>
+                                      <div className="flex gap-2 text-[9px] font-bold">
+                                        {viewMode === 'MAINTENANCE' ? (
+                                          <>
+                                            <span className="text-blue-600">U: {mUpToDate}</span>
+                                            {mAvailable > 0 && <span className="text-amber-600">A: {mAvailable}</span>}
+                                            {mInProgress > 0 && <span className="text-pink-600">P: {mInProgress}</span>}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span className="text-cyan-600">H: {hCount}</span>
+                                            {dCount > 0 && <span className="text-amber-600">D: {dCount}</span>}
+                                            {uCount > 0 && <span className="text-rose-600">U: {uCount}</span>}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {block.nodes.map((_, nodeIdx) => {
+                                        const key = (nodeIdx + bIdx * 18 + originalSbIdx * 36);
+                                        const isPendingRepair = key % 13 === 5;
+                                        const isInRepair = key % 13 === 8;
+                                        const hasVM = (key % 7 !== 0) && !isInRepair;
+                                        
+                                        const healthColor = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH');
+                                        const isSelected = selectedNode?.sbId === sb.id && selectedNode?.blockId === block.id && selectedNode?.nodeIdx === nodeIdx;
+                                        const isPendingMaint = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.pending;
+                                        const isOngoingMaint = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.inprogress;
+                                        
+                                        const status = healthColor === COLORS.health.unhealthy ? 'unhealthy' : 
+                                                 healthColor === COLORS.health.suspected ? 'degraded' : 'healthy';
+                                        
+                                        return (
+                                          <div 
+                                            key={nodeIdx}
+                                            className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
+                                            style={{ 
+                                              background: hasVM 
+                                                ? (isPendingMaint 
+                                                    ? `linear-gradient(135deg, ${healthColor} 50%, ${COLORS.maintenance.pending} 50%)` 
+                                                    : (isOngoingMaint
+                                                       ? `linear-gradient(135deg, ${healthColor} 50%, ${COLORS.maintenance.inprogress} 50%)`
+                                                       : (isPendingRepair 
+                                                          ? `linear-gradient(135deg, ${healthColor} 50%, ${COLORS.repair.pending} 50%)`
+                                                          : healthColor)))
+                                                : 'transparent',
+                                              border: hasVM ? 'none' : (isInRepair ? `1.5px solid ${COLORS.repair.inprogress}` : `1.5px solid ${healthColor}`)
+                                            }}
+                                            onClick={() => {
+                                              if (isSelected) setSelectedNode(null);
+                                              else {
+                                                setSelectedNode({ 
+                                                  sbId: sb.id, 
+                                                  blockId: block.id, 
+                                                  nodeIdx, 
+                                                  status, 
+                                                  hasVM, 
+                                                  repairStatus: isPendingRepair ? 'pending' : (isInRepair ? 'inprogress' : 'none') 
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            {!hasVM && (
+                                              <div 
+                                                className="w-1 h-1 rounded-full" 
+                                                style={{ 
+                                                  backgroundColor: isInRepair ? COLORS.repair.inprogress : healthColor 
+                                                }} 
+                                              />
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              {/* Inline Unified Detail */}
+                              {selectedNode && selectedNode.sbId === sb.id && (
+                                <UnifiedNodeDetail 
+                                  nodeIdx={selectedNode.nodeIdx} 
+                                  blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
+                                  healthStatus={selectedNode.status}
+                                  maintStatus={(() => {
+                                    const color = getNodeColor(originalSbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
+                                    return color === COLORS.maintenance.inprogress ? 'inprogress' :
+                                           color === COLORS.maintenance.available ? 'available' : 
+                                           color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
+                                  })()}
+                                  repairStatus={selectedNode.repairStatus}
+                                  hasVM={selectedNode.hasVM}
+                                  onJobClick={onJobClick}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                   </div>
+                </div>
             </div>
          </div>
 
