@@ -487,7 +487,7 @@ export const UnifiedNodeDetail: React.FC<{
             </div>
           </div>
           
-          {hasVM ? (
+          {hasVM && maintStatus !== 'inprogress' ? (
             <div className="h-32 w-full bg-slate-50 rounded border border-slate-100 p-2">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={NODE_HEALTH_HISTORY}>
@@ -506,7 +506,9 @@ export const UnifiedNodeDetail: React.FC<{
             </div>
           ) : (
             <div className="h-32 flex items-center justify-center bg-slate-50 border border-dashed border-slate-200 rounded text-[10px] text-slate-400 text-center px-4">
-              Telemetry unavailable: No active VM on this node.
+              {maintStatus === 'inprogress' 
+                ? 'Telemetry unavailable: Maintenance in progress.' 
+                : 'Telemetry unavailable: No active VM on this node.'}
             </div>
           )}
           <div className="grid grid-cols-2 gap-2">
@@ -518,7 +520,7 @@ export const UnifiedNodeDetail: React.FC<{
               <div className="text-[9px] text-slate-400 uppercase font-bold">Uptime</div>
               <div className="text-xs font-bold text-slate-700">14d 2h 12m</div>
             </div>
-            {hasVM && (
+            {hasVM && maintStatus !== 'inprogress' && (
               <div className="bg-slate-50 p-2 rounded border border-slate-100 col-span-2">
                 <div className="text-[9px] text-slate-400 uppercase font-bold">Running Job</div>
                 <button 
@@ -729,14 +731,7 @@ export const ClusterDirectorV2: React.FC<{
     status: any;
     hasVM: boolean;
     repairStatus?: 'none' | 'pending' | 'inprogress';
-  } | null>(() => {
-    // Auto-select first unhealthy node in Block 1 for demo purposes
-    const sb1 = MOCK_BLOCKS[0];
-    const b1 = sb1.subblocks[0];
-    const hasVM = (15 + 0 * 18) % 7 !== 0;
-    // In getNodeColor, key 15 is unhealthy. blockIdx 0, nodeIdx 15 -> key 15.
-    return { sbId: sb1.id, blockId: b1.id, nodeIdx: 15, status: 'unhealthy', hasVM };
-  });
+  } | null>(null);
 
   const handleTabChange = (mode: ViewMode) => {
     setViewMode(mode);
