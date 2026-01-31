@@ -165,7 +165,7 @@ export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick
                }}
                className="text-[9px] font-bold text-[#1967D2] hover:text-[#1557B0] flex items-center gap-1"
             >
-                View reservation topology
+                View reservation details
             </button>
          </div>
       </div>

@@ -639,13 +639,17 @@ export const UnifiedNodeDetail: React.FC<{
                       <div className="text-[10px] font-bold text-amber-900">NVLink Bridge (GPU 4-5)</div>
                     </div>
                     <div>
-                      <div className="text-[9px] text-amber-600 uppercase font-bold">Scheduled Start</div>
+                      <div className="text-[9px] text-amber-600 uppercase font-bold">
+                        {repairStatus === 'inprogress' ? 'Repair started at' : 'Scheduled Start'}
+                      </div>
                       <div className="text-[10px] font-bold text-amber-900">Jan 27, 02:00 PM</div>
                     </div>
                   </div>
-                  <button className="w-full py-1.5 bg-amber-700 text-white text-[10px] font-bold rounded hover:bg-amber-800 transition-colors shadow-sm">
-                    Send machine to repair now
-                  </button>
+                  {repairStatus !== 'inprogress' && (
+                    <button className="w-full py-1.5 bg-amber-700 text-white text-[10px] font-bold rounded hover:bg-amber-800 transition-colors shadow-sm">
+                      Send machine to repair now
+                    </button>
+                  )}
                 </div>
               </div>
             )}

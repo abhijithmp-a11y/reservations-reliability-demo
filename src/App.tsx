@@ -651,9 +651,9 @@ export default function App() {
   };
 
   const handleClusterClick = (clusterId: string) => {
-    setSelectedClusterId(clusterId);
     setActiveTab('director');
-    setView('cluster-detail');
+    setView('dashboard');
+    setSelectedClusterId(null);
   };
 
   const handleBack = () => {
