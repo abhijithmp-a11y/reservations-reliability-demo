@@ -16,7 +16,6 @@ import {
   HelpCircle,
   ExternalLink,
   Pencil,
-  Filter,
   MoreHorizontal,
   ArrowRight
 } from 'lucide-react';
@@ -27,10 +26,13 @@ import {
   Cell, 
   LineChart, 
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ReferenceLine
 } from 'recharts';
 
@@ -70,7 +72,7 @@ const MOCK_BLOCKS = [
   {
     id: 'sb1',
     label: 'Block 1',
-    isOpen: true,
+    isOpen: false,
     healthyCount: 33,
     degradedCount: 1,
     unhealthyCount: 2,
@@ -684,22 +686,12 @@ export const UnifiedNodeDetail: React.FC<{
   );
 };
 
-const HealthTooltip = ({ title, items }: { title: string; items: { label: string; color: string; description: string }[] }) => (
-  <div className="group relative inline-block ml-1">
-    <HelpCircle size={14} className="text-slate-300 hover:text-slate-500 cursor-help transition-colors" />
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-      <div className="font-bold mb-2 text-slate-300 uppercase tracking-wider border-b border-slate-700 pb-1">{title}</div>
-      <div className="space-y-2">
-        {items.map((item, idx) => (
-          <div key={idx} className="flex gap-2">
-            <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${item.color}`} />
-            <div>
-              <span className="font-bold text-slate-200">{item.label}:</span> {item.description}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+const HealthTooltip = ({ content, children }: { content: string; children: React.ReactNode }) => (
+  <div className="group relative inline-block">
+    {children}
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none text-center font-normal">
+      {content}
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
     </div>
   </div>
 );
@@ -715,6 +707,7 @@ export const ClusterDirectorV2: React.FC<{
   const [configOpen, setConfigOpen] = useState(false);
   const [blockFilter, setBlockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [subblockFilter, setSubblockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY' | 'SCHEDULABLE'>('ALL');
+  
   const [selectedNode, setSelectedNode] = useState<{ 
     sbId: string; 
     blockId: string; 
@@ -784,6 +777,7 @@ export const ClusterDirectorV2: React.FC<{
     let healthyCount = 0;
     let pendingMaintCount = 0;
     let pendingRepairCount = 0;
+    let inRepairCount = 0;
     let degradedCount = 0;
     let unhealthyCount = 0;
 
@@ -797,13 +791,32 @@ export const ClusterDirectorV2: React.FC<{
     let unhealthySubblocks = 0;
     let schedulableSubblocks = 0;
 
+    let maintBlocksPending = 0;
+    let maintBlocksInProgress = 0;
+    let maintSubblocksPending = 0;
+    let maintSubblocksInProgress = 0;
+
+    let repairSubblocksPending = 0;
+    let repairSubblocksInProgress = 0;
+
     blocks.forEach((sb, sbIdx) => {
       let isBlockHealthy = true;
+      let blockHasMaintPending = false;
+      let blockHasMaintInProgress = false;
+
       sb.subblocks.forEach((block, blockIdx) => {
         let healthyNodesInSubblock = 0;
+        let subblockHasMaintPending = false;
+        let subblockHasMaintInProgress = false;
+        let subblockHasRepairPending = false;
+        let subblockHasRepairInProgress = false;
+
         block.nodes.forEach((_, nodeIdx) => {
-          totalNodes++;
           const key = (sbIdx * 36) + (blockIdx * 18) + nodeIdx;
+          if (key % 13 === 5) subblockHasRepairPending = true;
+          if (key % 13 === 8) subblockHasRepairInProgress = true;
+          
+          totalNodes++;
           const hasVM = key % 7 !== 0;
           
           if (hasVM) {
@@ -820,12 +833,21 @@ export const ClusterDirectorV2: React.FC<{
             }
 
             if (key % 13 === 5) pendingRepairCount++;
+            if (key % 13 === 8) inRepairCount++;
 
             const maintColor = getNodeColor(sbIdx, blockIdx, nodeIdx, 'MAINTENANCE');
-            if (maintColor === COLORS.maintenance.pending) pendingMaintCount++;
+            if (maintColor === COLORS.maintenance.pending) {
+              pendingMaintCount++;
+              subblockHasMaintPending = true;
+              blockHasMaintPending = true;
+            }
             else if (maintColor === COLORS.maintenance.uptodate) maintUpToDate++;
             else if (maintColor === COLORS.maintenance.available) maintAvailable++;
-            else if (maintColor === COLORS.maintenance.inprogress) maintInProgress++;
+            else if (maintColor === COLORS.maintenance.inprogress) {
+              maintInProgress++;
+              subblockHasMaintInProgress = true;
+              blockHasMaintInProgress = true;
+            }
           } else {
             emptyNodes++;
             const healthColor = getNodeColor(sbIdx, blockIdx, nodeIdx, 'HEALTH');
@@ -837,6 +859,12 @@ export const ClusterDirectorV2: React.FC<{
           }
         });
         
+        if (subblockHasMaintPending) maintSubblocksPending++;
+        if (subblockHasMaintInProgress) maintSubblocksInProgress++;
+
+        if (subblockHasRepairPending) repairSubblocksPending++;
+        if (subblockHasRepairInProgress) repairSubblocksInProgress++;
+
         if (healthyNodesInSubblock === 18) {
           healthySubblocks++;
         } else if (healthyNodesInSubblock >= 16) {
@@ -849,6 +877,9 @@ export const ClusterDirectorV2: React.FC<{
       });
       if (isBlockHealthy) healthyBlocks++;
       else unhealthyBlocks++;
+
+      if (blockHasMaintPending) maintBlocksPending++;
+      if (blockHasMaintInProgress) maintBlocksInProgress++;
     });
 
     return {
@@ -868,6 +899,13 @@ export const ClusterDirectorV2: React.FC<{
       healthySubblocks,
       unhealthySubblocks,
       schedulableSubblocks,
+      maintBlocksPending,
+      maintBlocksInProgress,
+      maintSubblocksPending,
+      maintSubblocksInProgress,
+      repairSubblocksPending,
+      repairSubblocksInProgress,
+      inRepairCount,
       unplannedCount: Math.round(totalNodes * 0.01),
       upcomingImpact: {
         fiveDays: Math.round(totalNodes * 0.18),
@@ -908,16 +946,7 @@ export const ClusterDirectorV2: React.FC<{
                   <div className="flex justify-between items-end">
                      <div>
                         <div className="flex items-center gap-2 mb-1">
-                           <div className="flex items-center">
-                              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Blocks</h4>
-                              <HealthTooltip 
-                                 title="Block Health Criteria"
-                                 items={[
-                                    { label: 'Healthy', color: 'bg-cyan-400', description: 'All subblocks within the block are fully healthy (18/18 nodes).' },
-                                    { label: 'Unhealthy', color: 'bg-rose-500', description: 'Contains at least one subblock that is Schedulable or Unhealthy.' }
-                                 ]}
-                              />
-                           </div>
+                           <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Blocks</h4>
                            <div className="flex items-center bg-slate-100 rounded-md p-0.5">
                               {(['ALL', 'HEALTHY', 'UNHEALTHY'] as const).map((f) => (
                                  <button
@@ -952,14 +981,18 @@ export const ClusterDirectorV2: React.FC<{
                      />
                   </div>
                   <div className="flex justify-between text-[11px] font-bold">
-                     <div className="flex items-center gap-2 text-cyan-600">
-                        <div className="w-2 h-2 rounded-full bg-cyan-400" />
-                        Healthy: {reconciledMetrics.healthyBlocks}
-                     </div>
-                     <div className="flex items-center gap-2 text-rose-600">
-                        Unhealthy: {reconciledMetrics.unhealthyBlocks}
-                        <div className="w-2 h-2 rounded-full bg-rose-500" />
-                     </div>
+                     <HealthTooltip content="A block is Healthy if all its subblocks are fully healthy (18/18 nodes).">
+                        <div className="flex items-center gap-2 text-cyan-600 cursor-help">
+                           <div className="w-2 h-2 rounded-full bg-cyan-400" />
+                           Healthy: {reconciledMetrics.healthyBlocks}
+                        </div>
+                     </HealthTooltip>
+                     <HealthTooltip content="A block is Unhealthy if it contains at least one subblock that is Schedulable or Unhealthy.">
+                        <div className="flex items-center gap-2 text-rose-600 cursor-help">
+                           Unhealthy: {reconciledMetrics.unhealthyBlocks}
+                           <div className="w-2 h-2 rounded-full bg-rose-500" />
+                        </div>
+                     </HealthTooltip>
                   </div>
                </div>
 
@@ -968,17 +1001,7 @@ export const ClusterDirectorV2: React.FC<{
                   <div className="flex justify-between items-end">
                      <div>
                         <div className="flex items-center gap-2 mb-1">
-                           <div className="flex items-center">
-                              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Subblocks</h4>
-                              <HealthTooltip 
-                                 title="Subblock Health Criteria"
-                                 items={[
-                                    { label: 'Healthy', color: 'bg-cyan-400', description: '18 out of 18 machines are healthy.' },
-                                    { label: 'Schedulable', color: 'bg-amber-500', description: '16 or 17 machines are healthy. Viable for most workloads.' },
-                                    { label: 'Unhealthy', color: 'bg-rose-500', description: 'Fewer than 16 machines are healthy. Critical failure state.' }
-                                 ]}
-                              />
-                           </div>
+                           <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Subblocks</h4>
                            <div className="flex items-center bg-slate-100 rounded-md p-0.5">
                               {(['ALL', 'HEALTHY', 'SCHEDULABLE', 'UNHEALTHY'] as const).map((f) => (
                                  <button
@@ -1017,18 +1040,24 @@ export const ClusterDirectorV2: React.FC<{
                      />
                   </div>
                   <div className="flex justify-between text-[11px] font-bold">
-                     <div className="flex items-center gap-2 text-cyan-600">
-                        <div className="w-2 h-2 rounded-full bg-cyan-400" />
-                        Healthy: {reconciledMetrics.healthySubblocks}
-                     </div>
-                     <div className="flex items-center gap-2 text-amber-600">
-                        <div className="w-2 h-2 rounded-full bg-amber-500" />
-                        Schedulable: {reconciledMetrics.schedulableSubblocks}
-                     </div>
-                     <div className="flex items-center gap-2 text-rose-600">
-                        Unhealthy: {reconciledMetrics.unhealthySubblocks}
-                        <div className="w-2 h-2 rounded-full bg-rose-500" />
-                     </div>
+                     <HealthTooltip content="A subblock is Healthy if 18 out of 18 machines are healthy.">
+                        <div className="flex items-center gap-2 text-cyan-600 cursor-help">
+                           <div className="w-2 h-2 rounded-full bg-cyan-400" />
+                           Healthy: {reconciledMetrics.healthySubblocks}
+                        </div>
+                     </HealthTooltip>
+                     <HealthTooltip content="A subblock is Schedulable if 16 or 17 machines are healthy. Viable for most workloads.">
+                        <div className="flex items-center gap-2 text-amber-600 cursor-help">
+                           <div className="w-2 h-2 rounded-full bg-amber-500" />
+                           Schedulable: {reconciledMetrics.schedulableSubblocks}
+                        </div>
+                     </HealthTooltip>
+                     <HealthTooltip content="A subblock is Unhealthy if fewer than 16 machines are healthy. Critical failure state.">
+                        <div className="flex items-center gap-2 text-rose-600 cursor-help">
+                           Unhealthy: {reconciledMetrics.unhealthySubblocks}
+                           <div className="w-2 h-2 rounded-full bg-rose-500" />
+                        </div>
+                     </HealthTooltip>
                   </div>
                </div>
             </div>
@@ -1088,49 +1117,173 @@ export const ClusterDirectorV2: React.FC<{
         );
 
       case 'MAINTENANCE':
-        return (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
-             <div className="relative w-32 h-32 shrink-0 mx-auto lg:mx-0">
-               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                 <PieChart>
-                   <Pie data={dynamicMaintDonut} innerRadius={45} outerRadius={55} dataKey="value" startAngle={90} endAngle={-270} stroke="none">
-                     {dynamicMaintDonut.map((e, i) => <Cell key={i} fill={e.color} />)}
-                   </Pie>
-                 </PieChart>
-               </ResponsiveContainer>
-               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                 <span className="text-2xl font-bold text-slate-700">{reconciledMetrics.totalNodes}</span>
-                 <span className="text-[9px] text-slate-400 uppercase font-bold">Total VMs</span>
-               </div>
-             </div>
+        const maintChartData = [
+          { name: 'Blocks', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending },
+          { name: 'Subblocks', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending },
+          { name: 'VMs', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount },
+        ];
 
-             <div className="space-y-2">
-                <h4 className="font-bold text-slate-800 text-xs">Maintenance status</h4>
-                <div className="space-y-1.5 text-[11px] text-slate-600">
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"/> Up-to-date: <span className="text-[#1967D2]">{reconciledMetrics.maintUpToDate} VMs</span></div>
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-500"/> Pending: <span className="text-[#1967D2]">{reconciledMetrics.pendingMaintCount} VMs</span></div>
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500"/> Update available: <span className="text-[#1967D2]">{reconciledMetrics.maintAvailable} VMs</span></div>
-                  <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-pink-500"/> In progress: <span className="text-[#1967D2]">{reconciledMetrics.maintInProgress} VMs</span></div>
+        const repairChartData = [
+          { name: 'Subblocks', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending },
+          { name: 'Machines', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount },
+        ];
+
+        const CustomMaintTooltip = ({ active, payload }: any) => {
+          if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            const isOngoing = payload[0].dataKey === 'ongoing';
+            return (
+              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
+                  {data.name} Maintenance
                 </div>
-             </div>
+                {isOngoing ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-pink-500" />
+                      <span className="font-bold text-pink-400">Ongoing:</span> {data.ongoing} units
+                    </div>
+                    <div className="text-slate-300 pl-3.5">
+                      Started: Jan 30, 08:00 AM<br />
+                      Expected end: Jan 30, 11:00 AM
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                      <span className="font-bold text-violet-400">Pending:</span> {data.pending} units
+                    </div>
+                    <div className="text-slate-300 pl-3.5">
+                      Expected start: Jan 30, 02:00 PM<br />
+                      Expected end: Jan 30, 04:00 PM
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return null;
+        };
 
-             <div className="space-y-3">
-               <h4 className="font-bold text-slate-800 text-xs">Upcoming impact:</h4>
-               <ul className="space-y-1.5 text-[10px] text-slate-600">
-                   <li><span className="text-purple-600 font-bold">•</span> Next 5 days: <span className="text-[#1967D2]">{reconciledMetrics.upcomingImpact.fiveDays} VMs</span></li>
-                   <li><span className="text-purple-400 font-bold">•</span> In a week: <span className="text-[#1967D2]">{reconciledMetrics.upcomingImpact.week} VMs</span></li>
-                   <li><span className="text-blue-500 font-bold">•</span> In a month: <span className="text-[#1967D2]">{reconciledMetrics.upcomingImpact.month} VMs</span></li>
-               </ul>
-               <p className="text-[9px] text-slate-500 leading-tight">Start partially now to avoid disruption.</p>
-               <button className="text-[#1967D2] text-[10px] font-bold hover:underline">Learn more</button>
-             </div>
+        const CustomRepairTooltip = ({ active, payload }: any) => {
+          if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            const isOngoing = payload[0].dataKey === 'ongoing';
+            return (
+              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
+                  {data.name} Repair
+                </div>
+                {isOngoing ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#451a03]" />
+                      <span className="font-bold text-amber-600">In Repair:</span> {data.ongoing} units
+                    </div>
+                    <div className="text-slate-300 pl-3.5">
+                      Status: Active repair session<br />
+                      Technician: Assigned
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#78350f]" />
+                      <span className="font-bold text-amber-800">Pending:</span> {data.pending} units
+                    </div>
+                    <div className="text-slate-300 pl-3.5">
+                      Status: Queued for repair<br />
+                      Priority: High
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return null;
+        };
 
-             <div className="space-y-3">
-               <h4 className="font-bold text-slate-800 text-xs">Unplanned maintenance <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block ml-0.5"></span></h4>
-               <div className="flex items-center gap-1.5 text-slate-700 font-bold text-base"><AlertOctagon size={16} className="fill-red-500 text-white" /> {reconciledMetrics.unplannedCount} / {reconciledMetrics.totalNodes} VMs</div>
-               <p className="text-[9px] text-slate-500 leading-tight">Start 02/14/2025 at 12:00 UTC. Add temporary capacity to keep jobs running.</p>
-               <button className="text-[#1967D2] text-[10px] font-bold hover:underline">Start maintenance now</button>
-             </div>
+        return (
+          <div className="p-6 space-y-10">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center mb-2">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Maintenance</h4>
+                  <p className="text-xs text-slate-500">Ongoing vs Pending maintenance across hierarchy levels</p>
+                </div>
+                <div className="flex gap-4 text-[10px] font-bold">
+                  <div className="flex items-center gap-1.5 text-pink-600">
+                    <div className="w-2 h-2 rounded-full bg-pink-500" /> Ongoing
+                  </div>
+                  <div className="flex items-center gap-1.5 text-violet-600">
+                    <div className="w-2 h-2 rounded-full bg-violet-500" /> Pending
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={maintChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                    />
+                    <Tooltip shared={false} content={<CustomMaintTooltip />} cursor={{ fill: '#f8fafc' }} />
+                    <Bar dataKey="ongoing" fill="#ec4899" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Bar dataKey="pending" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="space-y-6 pt-6 border-t border-slate-100">
+              <div className="flex justify-between items-center mb-2">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Repairs</h4>
+                  <p className="text-xs text-slate-500">Hardware repairs for subblocks and machines</p>
+                </div>
+                <div className="flex gap-4 text-[10px] font-bold">
+                  <div className="flex items-center gap-1.5 text-[#451a03]">
+                    <div className="w-2 h-2 rounded-full bg-[#451a03]" /> In Repair
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#78350f]">
+                    <div className="w-2 h-2 rounded-full bg-[#78350f]" /> Pending
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={repairChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                    />
+                    <Tooltip shared={false} content={<CustomRepairTooltip />} cursor={{ fill: '#f8fafc' }} />
+                    <Bar dataKey="ongoing" fill="#451a03" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Bar dataKey="pending" fill="#78350f" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
           </div>
         );
     }
@@ -1155,21 +1308,7 @@ export const ClusterDirectorV2: React.FC<{
       {/* Top Navigation - Removed as per request to merge views */}
 
       <div className="space-y-6 animate-fadeIn">
-         {/* Physical Resource Topology Section (Chart Section at Top) */}
-         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-               <div>
-                  <h3 className="text-lg font-medium text-slate-900">Reservation overview</h3>
-               </div>
-            </div>
-
-            {/* Summary Dashboard Card */}
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
-               {renderDashboardCard()}
-            </div>
-         </div>
-
-         {/* Combined Summary Block */}
+         {/* Combined Summary Block (Now at the top) */}
          <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             {/* VMs Used Section */}
             <div className="flex items-center gap-6">
@@ -1212,12 +1351,310 @@ export const ClusterDirectorV2: React.FC<{
             {/* Maintenance Section */}
             <div className="md:pl-8 pt-6 md:pt-0">
                <div className="flex items-center gap-1.5 mb-1">
-                  <h4 className="text-sm font-medium text-slate-800">Maintenance</h4>
+                  <h4 className="text-sm font-medium text-slate-800">Maintenance and Repairs</h4>
                   <HelpCircle size={14} className="text-slate-400 cursor-help" />
                </div>
                <p className="text-xs text-slate-500 leading-relaxed">
-                  Updates scheduled for next window. <a href="#" className="text-[#1a73e8] hover:underline font-medium">View schedule</a>
+                  There are Maintenance and Repairs affecting this reservation. <button onClick={() => handleTabChange('MAINTENANCE')} className="text-[#1a73e8] hover:underline font-medium">View details</button>
                </p>
+            </div>
+         </div>
+
+         {/* Physical Resource Topology Section (Now below summary) */}
+         <div className="space-y-4">
+            <h3 className="text-lg font-medium text-slate-900">Reservation overview</h3>
+            
+            {/* Unified Logical Block: Metrics + Topology */}
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+               <div className="px-6 pt-4 border-b border-slate-100 bg-slate-50/30">
+                  <div className="flex items-center gap-6">
+                    {(['HEALTH', 'MAINTENANCE'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => handleTabChange(mode)}
+                        className={`pb-3 text-xs font-bold transition-all relative ${
+                          viewMode === mode 
+                            ? 'text-[#1967D2]' 
+                            : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        {mode === 'MAINTENANCE' ? 'Maintenance and repairs' : mode.charAt(0) + mode.slice(1).toLowerCase()}
+                        {viewMode === mode && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1967D2] rounded-full" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+               </div>
+               {renderDashboardCard()}
+
+               {/* Physical Resource Topology - Node Map Section (Now inside the card) */}
+               <div className="p-6 border-t border-slate-100 space-y-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                     <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Topology</h4>
+                     
+                     {/* Legend Footer */}
+                      <div className="flex flex-wrap gap-4 text-[10px] font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
+                           <div className="w-3 h-2.5 bg-slate-400 rounded-[1px]" />
+                           <span>With VM</span>
+                           <div className="w-3 h-2.5 border border-slate-400 rounded-[1px] ml-1" />
+                           <span>No VM</span>
+                        </div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-300"/> Healthy</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending Maint</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#78350f]"/> Pending Repair</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#451a03]"/> In Repair</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/> Degraded</div>
+                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"/> Unhealthy</div>
+                      </div>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-3">
+                     {viewMode === 'UTILIZATION' && (
+                        <>
+                           <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Plus size={12} /> Add capacity</button>
+                           <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><SkipForward size={12} className="fill-[#1967D2]" /> Replace stragglers</button>
+                        </>
+                     )}
+                     {viewMode === 'MAINTENANCE' && (
+                        <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Play size={12} className="fill-[#1967D2]" /> Start all maintenance now</button>
+                     )}
+                  </div>
+                  
+                  {/* Blocks List */}
+                  <div className="space-y-3">
+                     {blocks.map((sb, originalSbIdx) => ({ sb, originalSbIdx }))
+                      .filter(({ sb, originalSbIdx }) => {
+                        if (blockFilter === 'ALL') return true;
+                        const isHealthy = sb.subblocks.every((block, bIdx) => 
+                           block.nodes.every((_, nIdx) => {
+                              const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
+                              const hasVM = key % 7 !== 0;
+                              if (!hasVM) return true;
+                              return getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
+                           })
+                        );
+                        return blockFilter === 'HEALTHY' ? isHealthy : !isHealthy;
+                      })
+                      .map(({ sb, originalSbIdx }) => {
+                        const sbMaint = sb.subblocks.flatMap((b, bIdx) => 
+                          b.nodes.map((_, nIdx) => getNodeColor(originalSbIdx, bIdx, nIdx, 'MAINTENANCE'))
+                        );
+                        const sbUpToDate = sbMaint.filter(c => c === COLORS.maintenance.uptodate).length;
+                        const sbAvailable = sbMaint.filter(c => c === COLORS.maintenance.available).length;
+                        const sbInProgress = sbMaint.filter(c => c === COLORS.maintenance.inprogress).length;
+
+                        return (
+                        <div key={sb.id} className="bg-white border border-slate-200 rounded-lg shadow-sm transition-all">
+                           {/* Header */}
+                           <div 
+                             onClick={() => toggleBlock(sb.id)}
+                             className={`px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none rounded-t-lg ${!sb.isOpen ? 'rounded-b-lg' : ''}`}
+                           >
+                              <div className="flex items-center gap-2">
+                                 <h3 className="text-sm font-medium text-slate-900">{sb.label}</h3>
+                                  <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1 rounded border border-slate-100">B{originalSbIdx + 1}</span>
+                                 <ChevronDown size={16} className={`text-slate-400 transition-transform ${sb.isOpen ? 'rotate-180' : ''}`} />
+                              </div>
+                              
+                              {/* Right Actions */}
+                              {sb.isOpen ? (
+                                 <div className="flex gap-4">
+                                    {viewMode === 'UTILIZATION' && (
+                                       <>
+                                         <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Plus size={12} /> Add capacity</button>
+                                         <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><SkipForward size={10} className="fill-[#1967D2]" /> Replace stragglers</button>
+                                       </>
+                                    )}
+                                     {viewMode === 'MAINTENANCE' && (
+                                         <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Play size={10} className="fill-[#1967D2]" /> Start maintenance</button>
+                                    )}
+                                 </div>
+                              ) : (
+                                 // Collapsed Summary
+                                 <div className="flex items-center gap-4 text-[10px] font-bold">
+                                    {viewMode === 'MAINTENANCE' ? (
+                                      <>
+                                        <div className="flex items-center gap-1 text-blue-600">
+                                           <Shield size={12} className="fill-blue-50" /> Up-to-date: {sbUpToDate} VMs
+                                        </div>
+                                        {sbAvailable > 0 && (
+                                           <div className="flex items-center gap-1 text-amber-600">
+                                               <RefreshCw size={12} className="animate-spin-slow" /> Available: {sbAvailable} VMs
+                                           </div>
+                                        )}
+                                        {sbInProgress > 0 && (
+                                           <div className="flex items-center gap-1 text-pink-600">
+                                               <Play size={12} className="fill-pink-50" /> In progress: {sbInProgress} VMs
+                                           </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="flex items-center gap-1 text-cyan-600">
+                                           <Shield size={12} className="fill-cyan-50" /> Healthy: {sb.healthyCount} VMs
+                                        </div>
+                                        {sb.degradedCount > 0 && (
+                                           <div className="flex items-center gap-1 text-amber-600">
+                                               <AlertTriangle size={12} className="fill-amber-50" /> Degraded: {sb.degradedCount} VMs
+                                           </div>
+                                        )}
+                                        {sb.unhealthyCount > 0 && (
+                                           <div className="flex items-center gap-1 text-rose-600">
+                                               <AlertOctagon size={12} className="fill-rose-50" /> Unhealthy: {sb.unhealthyCount} VMs
+                                           </div>
+                                        )}
+                                      </>
+                                    )}
+                                 </div>
+                              )}
+                           </div>
+
+                           {/* Content */}
+                           {sb.isOpen && (
+                             <div className="px-4 pb-4 pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {sb.subblocks.map((block, bIdx) => ({ block, bIdx }))
+                                 .filter(({ block, bIdx }) => {
+                                   if (subblockFilter === 'ALL') return true;
+                                   let healthyNodesCount = 0;
+                                   block.nodes.forEach((_, nIdx) => {
+                                     const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
+                                     const hasVM = key % 7 !== 0;
+                                     if (!hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy) {
+                                       healthyNodesCount++;
+                                     }
+                                   });
+                                   if (subblockFilter === 'HEALTHY') return healthyNodesCount === 18;
+                                   if (subblockFilter === 'SCHEDULABLE') return healthyNodesCount >= 16 && healthyNodesCount < 18;
+                                   if (subblockFilter === 'UNHEALTHY') return healthyNodesCount < 16;
+                                   return true;
+                                 })
+                                 .map(({ block, bIdx }) => {
+                                   const healthyNodesCount = block.nodes.filter((_, nIdx) => {
+                                     const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
+                                     const hasVM = key % 7 !== 0;
+                                     return !hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
+                                   }).length;
+                                   
+                                   const subblockStatus = healthyNodesCount === 18 ? 'HEALTHY' : 
+                                                          healthyNodesCount >= 16 ? 'SCHEDULABLE' : 'UNHEALTHY';
+
+                                   const blockHealth = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH'));
+                                   const hCount = blockHealth.filter(c => c === COLORS.health.healthy).length;
+                                   const dCount = blockHealth.filter(c => c === COLORS.health.suspected).length;
+                                   const uCount = blockHealth.filter(c => c === COLORS.health.unhealthy).length;
+
+                                   const blockMaint = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE'));
+                                   const mUpToDate = blockMaint.filter(c => c === COLORS.maintenance.uptodate).length;
+                                   const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
+                                   const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
+
+                                   return (
+                                    <div key={block.id}>
+                                       <div className="flex justify-between items-center mb-1.5">
+                                          <div className="flex items-center gap-1.5">
+                                             <h5 className="text-[10px] text-slate-500">{block.label}</h5>
+                                              <span className="text-[9px] font-mono text-slate-400">B{originalSbIdx + 1}-sb{bIdx + 1}</span>
+                                             {subblockStatus === 'SCHEDULABLE' && (
+                                                <span className="text-[8px] px-1 bg-amber-100 text-amber-700 rounded font-bold uppercase">Schedulable</span>
+                                             )}
+                                             {subblockStatus === 'UNHEALTHY' && (
+                                                <span className="text-[8px] px-1 bg-rose-100 text-rose-700 rounded font-bold uppercase">Unhealthy</span>
+                                             )}
+                                          </div>
+                                          <div className="flex gap-2 text-[9px] font-bold">
+                                             {viewMode === 'MAINTENANCE' ? (
+                                               <>
+                                                 <span className="text-blue-600">U: {mUpToDate}</span>
+                                                 {mAvailable > 0 && <span className="text-amber-600">A: {mAvailable}</span>}
+                                                 {mInProgress > 0 && <span className="text-pink-600">P: {mInProgress}</span>}
+                                               </>
+                                             ) : (
+                                               <>
+                                                 <span className="text-cyan-600">H: {hCount}</span>
+                                                 {dCount > 0 && <span className="text-amber-600">D: {dCount}</span>}
+                                                 {uCount > 0 && <span className="text-rose-600">U: {uCount}</span>}
+                                               </>
+                                             )}
+                                          </div>
+                                       </div>
+                                       <div className="flex flex-wrap gap-1">
+                                          {block.nodes.map((_, nodeIdx) => {
+                                            const color = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH');
+                                            const isSelected = selectedNode?.sbId === sb.id && selectedNode?.blockId === block.id && selectedNode?.nodeIdx === nodeIdx;
+                                            const hasVM = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 7 !== 0;
+                                            const isPendingMaint = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.pending;
+                                            
+                                            const status = color === COLORS.health.unhealthy ? 'unhealthy' : 
+                                                     color === COLORS.health.suspected ? 'degraded' : 'healthy';
+                                            
+                                            return (
+                                              <div 
+                                                key={nodeIdx}
+                                                className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
+                                                style={{ 
+                                                  background: hasVM 
+                                                    ? (isPendingMaint 
+                                                        ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` 
+                                                        : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5
+                                                           ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)`
+                                                           : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 8
+                                                              ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.inprogress} 50%)`
+                                                              : color)))
+                                                    : 'transparent',
+                                                  border: hasVM ? 'none' : `1.5px solid ${color}`
+                                                }}
+                                                title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}${(nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5 ? ' (Pending Repair)' : ''}`}
+                                                onClick={() => {
+                                                  if (isSelected) setSelectedNode(null);
+                                                  else {
+                                                    const isPendingRepair = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5;
+                                                    setSelectedNode({ 
+                                                      sbId: sb.id, 
+                                                      blockId: block.id, 
+                                                      nodeIdx, 
+                                                      status, 
+                                                      hasVM, 
+                                                      repairStatus: isPendingRepair ? 'pending' : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 8 ? 'inprogress' : 'none') 
+                                                    });
+                                                  }
+                                                }}
+                                              >
+                                                {!hasVM && <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />}
+                                              </div>
+                                            );
+                                          })}
+                                       </div>
+                                    </div>
+                                   );
+                                })}
+
+                                {/* Inline Unified Detail */}
+                                {selectedNode && selectedNode.sbId === sb.id && (
+                                  <UnifiedNodeDetail 
+                                    nodeIdx={selectedNode.nodeIdx} 
+                                    blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
+                                    healthStatus={selectedNode.status}
+                                    maintStatus={(() => {
+                                      const color = getNodeColor(originalSbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
+                                      return color === COLORS.maintenance.inprogress ? 'inprogress' :
+                                             color === COLORS.maintenance.available ? 'available' : 
+                                             color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
+                                    })()}
+                                    repairStatus={selectedNode.repairStatus}
+                                    hasVM={selectedNode.hasVM}
+                                    onJobClick={onJobClick}
+                                  />
+                                )}
+                             </div>
+                           )}
+                        </div>
+                        );
+                     })}
+                  </div>
+               </div>
             </div>
          </div>
 
@@ -1331,310 +1768,6 @@ export const ClusterDirectorV2: React.FC<{
             </div>
          </div>
 
-         {/* Physical Resource Topology - Node Map Section */}
-         <div className="pt-8 border-t border-slate-100 space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-               <h3 className="text-lg font-medium text-slate-900">Topology</h3>
-               
-               {/* Legend Footer */}
-               <div className="flex flex-wrap gap-4 text-[10px] font-medium bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                  <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
-                     <div className="w-3 h-2.5 bg-slate-400 rounded-[1px]" />
-                     <span>With VM</span>
-                     <div className="w-3 h-2.5 border border-slate-400 rounded-[1px] ml-1" />
-                     <span>No VM</span>
-                  </div>
-                  {viewMode === 'HEALTH' && (
-                     <>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-300"/> Healthy</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending Maint</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#78350f]"/> Pending Repair</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/> Degraded</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"/> Unhealthy</div>
-                     </>
-                  )}
-                  {viewMode === 'UTILIZATION' && (
-                     <>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-300"/> 0%-40%</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400"/> 40%-80%</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> 80%-100%</div>
-                     </>
-                  )}
-                  {viewMode === 'MAINTENANCE' && (
-                     <>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> Up-to-date</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"/> Pending</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/> Update available</div>
-                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-pink-500"/> In progress</div>
-                     </>
-                  )}
-               </div>
-            </div>
-            
-            {/* Action Buttons (Moved from footer) */}
-            <div className="flex justify-end gap-3 mb-2">
-               {viewMode === 'UTILIZATION' && (
-                  <>
-                     <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Plus size={12} /> Add capacity</button>
-                     <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><SkipForward size={12} className="fill-[#1967D2]" /> Replace stragglers</button>
-                  </>
-               )}
-               {viewMode === 'MAINTENANCE' && (
-                  <button className="text-[#1967D2] text-xs font-bold flex items-center gap-1 hover:text-[#1557B0]"><Play size={12} className="fill-[#1967D2]" /> Start all maintenance now</button>
-               )}
-            </div>
-            
-            {/* Blocks List */}
-               <div className="space-y-3">
-                  {blocks.map((sb, originalSbIdx) => ({ sb, originalSbIdx }))
-                   .filter(({ sb, originalSbIdx }) => {
-                     if (blockFilter === 'ALL') return true;
-                     const isHealthy = sb.subblocks.every((block, bIdx) => 
-                        block.nodes.every((_, nIdx) => {
-                           const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
-                           const hasVM = key % 7 !== 0;
-                           if (!hasVM) return true;
-                           return getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
-                        })
-                     );
-                     return blockFilter === 'HEALTHY' ? isHealthy : !isHealthy;
-                   })
-                   .map(({ sb, originalSbIdx }) => {
-                     const sbMaint = sb.subblocks.flatMap((b, bIdx) => 
-                       b.nodes.map((_, nIdx) => getNodeColor(originalSbIdx, bIdx, nIdx, 'MAINTENANCE'))
-                     );
-                     const sbUpToDate = sbMaint.filter(c => c === COLORS.maintenance.uptodate).length;
-                     const sbAvailable = sbMaint.filter(c => c === COLORS.maintenance.available).length;
-                     const sbInProgress = sbMaint.filter(c => c === COLORS.maintenance.inprogress).length;
-
-                     return (
-                     <div key={sb.id} className="bg-white border border-slate-200 rounded-lg shadow-sm transition-all">
-                        {/* Header */}
-                        <div 
-                          onClick={() => toggleBlock(sb.id)}
-                          className={`px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none rounded-t-lg ${!sb.isOpen ? 'rounded-b-lg' : ''}`}
-                        >
-                           <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-medium text-slate-900">{sb.label}</h3>
-                              <ChevronDown size={16} className={`text-slate-400 transition-transform ${sb.isOpen ? 'rotate-180' : ''}`} />
-                           </div>
-                           
-                           {/* Right Actions */}
-                           {sb.isOpen ? (
-                              <div className="flex gap-4">
-                                 {viewMode === 'UTILIZATION' && (
-                                    <>
-                                      <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Plus size={12} /> Add capacity</button>
-                                      <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><SkipForward size={10} className="fill-[#1967D2]" /> Replace stragglers</button>
-                                    </>
-                                 )}
-                                  {viewMode === 'MAINTENANCE' && (
-                                      <button className="text-[#1967D2] text-[10px] font-bold flex items-center gap-1 hover:underline"><Play size={10} className="fill-[#1967D2]" /> Start maintenance</button>
-                                 )}
-                              </div>
-                           ) : (
-                              // Collapsed Summary
-                              <div className="flex items-center gap-4 text-[10px] font-bold">
-                                 {viewMode === 'MAINTENANCE' ? (
-                                   <>
-                                     <div className="flex items-center gap-1 text-blue-600">
-                                        <Shield size={12} className="fill-blue-50" /> Up-to-date: {sbUpToDate} VMs
-                                     </div>
-                                     {sbAvailable > 0 && (
-                                        <div className="flex items-center gap-1 text-amber-600">
-                                            <RefreshCw size={12} className="animate-spin-slow" /> Available: {sbAvailable} VMs
-                                        </div>
-                                     )}
-                                     {sbInProgress > 0 && (
-                                        <div className="flex items-center gap-1 text-pink-600">
-                                            <Play size={12} className="fill-pink-50" /> In progress: {sbInProgress} VMs
-                                        </div>
-                                     )}
-                                   </>
-                                 ) : (
-                                   <>
-                                     <div className="flex items-center gap-1 text-cyan-600">
-                                        <Shield size={12} className="fill-cyan-50" /> Healthy: {sb.healthyCount} VMs
-                                     </div>
-                                     {sb.degradedCount > 0 && (
-                                        <div className="flex items-center gap-1 text-amber-600">
-                                            <AlertTriangle size={12} className="fill-amber-50" /> Degraded: {sb.degradedCount} VMs
-                                        </div>
-                                     )}
-                                     {sb.unhealthyCount > 0 && (
-                                        <div className="flex items-center gap-1 text-rose-600">
-                                            <AlertOctagon size={12} className="fill-rose-50" /> Unhealthy: {sb.unhealthyCount} VMs
-                                        </div>
-                                     )}
-                                   </>
-                                 )}
-                                 {viewMode === 'MAINTENANCE' && sb.id === 'sb2' && (
-                                     <div className="flex items-center gap-1 text-rose-600">
-                                         <AlertOctagon size={12} className="fill-rose-100" /> Unplanned: 2 VMs
-                                     </div>
-                                 )}
-                              </div>
-                           )}
-                        </div>
-
-                        {/* Content */}
-                        {sb.isOpen && (
-                          <div className="px-4 pb-4 pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
-                             {sb.subblocks.map((block, bIdx) => ({ block, bIdx }))
-                              .filter(({ block, bIdx }) => {
-                                if (subblockFilter === 'ALL') return true;
-                                let healthyNodesCount = 0;
-                                block.nodes.forEach((_, nIdx) => {
-                                  const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
-                                  const hasVM = key % 7 !== 0;
-                                  if (!hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy) {
-                                    healthyNodesCount++;
-                                  }
-                                });
-                                if (subblockFilter === 'HEALTHY') return healthyNodesCount === 18;
-                                if (subblockFilter === 'SCHEDULABLE') return healthyNodesCount >= 16 && healthyNodesCount < 18;
-                                if (subblockFilter === 'UNHEALTHY') return healthyNodesCount < 16;
-                                return true;
-                              })
-                              .map(({ block, bIdx }) => {
-                                const healthyNodesCount = block.nodes.filter((_, nIdx) => {
-                                  const key = (originalSbIdx * 36) + (bIdx * 18) + nIdx;
-                                  const hasVM = key % 7 !== 0;
-                                  return !hasVM || getNodeColor(originalSbIdx, bIdx, nIdx, 'HEALTH') !== COLORS.health.unhealthy;
-                                }).length;
-                                
-                                const subblockStatus = healthyNodesCount === 18 ? 'HEALTHY' : 
-                                                       healthyNodesCount >= 16 ? 'SCHEDULABLE' : 'UNHEALTHY';
-
-                                const blockHealth = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'HEALTH'));
-                                const hCount = blockHealth.filter(c => c === COLORS.health.healthy).length;
-                                const dCount = blockHealth.filter(c => c === COLORS.health.suspected).length;
-                                const uCount = blockHealth.filter(c => c === COLORS.health.unhealthy).length;
-
-                                const blockMaint = block.nodes.map((_, nodeIdx) => getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE'));
-                                const mUpToDate = blockMaint.filter(c => c === COLORS.maintenance.uptodate).length;
-                                const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
-                                const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
-
-                                return (
-                                 <div key={block.id}>
-                                    <div className="flex justify-between items-center mb-1.5">
-                                       <div className="flex items-center gap-1.5">
-                                          <h5 className="text-[10px] text-slate-500">{block.label}</h5>
-                                          {subblockStatus === 'SCHEDULABLE' && (
-                                             <span className="text-[8px] px-1 bg-amber-100 text-amber-700 rounded font-bold uppercase">Schedulable</span>
-                                          )}
-                                          {subblockStatus === 'UNHEALTHY' && (
-                                             <span className="text-[8px] px-1 bg-rose-100 text-rose-700 rounded font-bold uppercase">Unhealthy</span>
-                                          )}
-                                       </div>
-                                       <div className="flex gap-2 text-[9px] font-bold">
-                                          {viewMode === 'MAINTENANCE' ? (
-                                            <>
-                                              <span className="text-blue-600">U: {mUpToDate}</span>
-                                              {mAvailable > 0 && <span className="text-amber-600">A: {mAvailable}</span>}
-                                              {mInProgress > 0 && <span className="text-pink-600">P: {mInProgress}</span>}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <span className="text-cyan-600">H: {hCount}</span>
-                                              {dCount > 0 && <span className="text-amber-600">D: {dCount}</span>}
-                                              {uCount > 0 && <span className="text-rose-600">U: {uCount}</span>}
-                                            </>
-                                          )}
-                                       </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1">
-                                       {block.nodes.map((_, nodeIdx) => {
-                                         const color = getNodeColor(originalSbIdx, bIdx, nodeIdx, viewMode);
-                                         const isSelected = selectedNode?.sbId === sb.id && selectedNode?.blockId === block.id && selectedNode?.nodeIdx === nodeIdx;
-                                         const hasVM = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 7 !== 0;
-                                         const isPendingMaint = getNodeColor(originalSbIdx, bIdx, nodeIdx, 'MAINTENANCE') === COLORS.maintenance.pending;
-                                         
-                                         let status: any;
-                                         if (viewMode === 'HEALTH') {
-                                           status = color === COLORS.health.unhealthy ? 'unhealthy' : 
-                                                    color === COLORS.health.suspected ? 'degraded' : 'healthy';
-                                         } else if (viewMode === 'MAINTENANCE') {
-                                           status = color === COLORS.maintenance.inprogress ? 'inprogress' :
-                                                    color === COLORS.maintenance.available ? 'available' : 
-                                                    color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
-                                         } else {
-                                           status = 'healthy';
-                                         }
-                                         
-                                         return (
-                                           <div 
-                                             key={nodeIdx}
-                                             className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
-                                             style={{ 
-                                               background: hasVM 
-                                                 ? (isPendingMaint && viewMode === 'HEALTH' 
-                                                     ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.maintenance.pending} 50%)` 
-                                                     : ((nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5 && viewMode === 'HEALTH'
-                                                        ? `linear-gradient(135deg, ${COLORS.health.healthy} 50%, ${COLORS.repair.pending} 50%)`
-                                                        : color))
-                                                 : 'transparent',
-                                               border: hasVM ? 'none' : `1.5px solid ${color}`
-                                             }}
-                                             title={`Node ${nodeIdx}${!hasVM ? ' (No VM)' : ''}${(nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5 ? ' (Pending Repair)' : ''}`}
-                                             onClick={() => {
-                                               if (isSelected) setSelectedNode(null);
-                                               else {
-                                                 const isPendingRepair = (nodeIdx + bIdx * 18 + originalSbIdx * 36) % 13 === 5;
-                                                 setSelectedNode({ 
-                                                   sbId: sb.id, 
-                                                   blockId: block.id, 
-                                                   nodeIdx, 
-                                                   status, 
-                                                   hasVM, 
-                                                   repairStatus: isPendingRepair ? 'pending' : 'none' 
-                                                 });
-                                               }
-                                             }}
-                                           >
-                                             {!hasVM && <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />}
-                                           </div>
-                                         );
-                                       })}
-                                    </div>
-                                 </div>
-                                );
-                             })}
-
-                             {/* Inline Health Detail */}
-                             {selectedNode && selectedNode.sbId === sb.id && viewMode === 'HEALTH' && (
-                               <UnifiedNodeDetail 
-                                 nodeIdx={selectedNode.nodeIdx} 
-                                 blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
-                                 healthStatus={selectedNode.status}
-                                 maintStatus={(() => {
-                                   const color = getNodeColor(originalSbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
-                                   return color === COLORS.maintenance.inprogress ? 'inprogress' :
-                                          color === COLORS.maintenance.available ? 'available' : 
-                                          color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
-                                 })()}
-                                 repairStatus={selectedNode.repairStatus}
-                                 hasVM={selectedNode.hasVM}
-                                 onJobClick={onJobClick}
-                               />
-                             )}
-
-                             {/* Inline Maintenance Detail */}
-                             {selectedNode && selectedNode.sbId === sb.id && viewMode === 'MAINTENANCE' && (
-                               <NodeMaintenanceDetail 
-                                 nodeIdx={selectedNode.nodeIdx} 
-                                 blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
-                                 status={selectedNode.status}
-                               />
-                             )}
-                          </div>
-                        )}
-                     </div>
-                     );
-                  })}
-               </div>
-         </div>
       </div>
    </div>
 );

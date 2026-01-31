@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Job } from '@/types';
-import { ChevronLeft, Search, Filter, Info, TrendingUp, Zap, Thermometer, Activity } from 'lucide-react';
+import { ChevronLeft, Filter, Info, TrendingUp, Zap, Thermometer, Activity } from 'lucide-react';
 import { UnifiedNodeDetail, NODE_HEALTH_HISTORY } from './ClusterDirectorV2';
 import { 
   ResponsiveContainer, 
@@ -38,7 +38,6 @@ const generateTimeSeriesData = (baseValue: number, variance: number, count: numb
 
 export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClick }) => {
   const [selectedNode, setSelectedNode] = useState<NodeState | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
 
   // Generate mock nodes for this job
   const nodes = useMemo(() => {
@@ -58,8 +57,10 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
       else if (maintSeed > 95) maintStatus = 'pending';
       else if (maintSeed > 90) maintStatus = 'available';
 
-      const blockNum = Math.floor(i / 32) + 1;
-      const subblockNum = Math.floor((i % 32) / 8) + 1;
+      const nodesPerSubblock = 18;
+      const nodesPerBlock = 36;
+      const blockNum = Math.floor(i / nodesPerBlock) + 1;
+      const subblockNum = Math.floor((i % nodesPerBlock) / nodesPerSubblock) + 1;
 
       const repairSeed = (i * 47 + job.id.length) % 100;
       let repairStatus: 'none' | 'pending' | 'inprogress' = 'none';
@@ -71,8 +72,8 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
         status, 
         maintStatus,
         repairStatus,
-        block: `Block ${blockNum}`,
-        subblock: `Subblock ${subblockNum}`
+        block: `B${blockNum}`,
+        subblock: `B${blockNum}-sb${subblockNum}`
       });
     }
     return result;
@@ -95,11 +96,10 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
   }, [nodes, filterBlock, filterSubblock]);
 
   const filteredNodes = nodes.filter(n => {
-    const matchesSearch = n.id.toString().includes(searchTerm) || n.status.includes(searchTerm.toLowerCase());
     const matchesBlock = filterBlock === 'All Blocks' || n.block === filterBlock;
     const matchesSubblock = filterSubblock === 'All Subblocks' || n.subblock === filterSubblock;
     const matchesNode = filterNode === 'All Nodes' || `Node ${n.id}` === filterNode;
-    return matchesSearch && matchesBlock && matchesSubblock && matchesNode;
+    return matchesBlock && matchesSubblock && matchesNode;
   });
 
   // Prepare multi-series data for charts
@@ -170,17 +170,6 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
               <div className="text-sm font-bold text-rose-600">{stats.unhealthy}</div>
             </div>
           </div>
-          <div className="h-8 w-px bg-slate-200" />
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text"
-              placeholder="Filter nodes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-[#1967D2] w-48"
-            />
-          </div>
         </div>
       </div>
 
@@ -213,22 +202,59 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
         </div>
       </div>
 
-      {/* Node Grid */}
-      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            Allocated Nodes ({filteredNodes.length})
-            <Info size={14} className="text-slate-400 cursor-help" />
-          </h3>
+      {/* Unified Logical Block: Filters + Topology + Metrics */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        {/* Filter Bar */}
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-slate-400" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filter:</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <select 
+                value={filterBlock}
+                onChange={(e) => {
+                  setFilterBlock(e.target.value);
+                  setFilterSubblock('All Subblocks');
+                  setFilterNode('All Nodes');
+                }}
+                className="bg-white border border-slate-200 rounded px-2 py-1 text-[10px] font-bold text-slate-600 focus:outline-none focus:border-[#1967D2] transition-colors cursor-pointer"
+              >
+                {blocks.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              
+              <select 
+                value={filterSubblock}
+                onChange={(e) => {
+                  setFilterSubblock(e.target.value);
+                  setFilterNode('All Nodes');
+                }}
+                className="bg-white border border-slate-200 rounded px-2 py-1 text-[10px] font-bold text-slate-600 focus:outline-none focus:border-[#1967D2] transition-colors cursor-pointer"
+              >
+                {subblocks.map(sb => <option key={sb} value={sb}>{sb}</option>)}
+              </select>
+              
+              <select 
+                value={filterNode}
+                onChange={(e) => setFilterNode(e.target.value)}
+                className="bg-white border border-slate-200 rounded px-2 py-1 text-[10px] font-bold text-slate-600 focus:outline-none focus:border-[#1967D2] transition-colors cursor-pointer"
+              >
+                {nodeOptions.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#67e8f9' }} /> Healthy
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#8b5cf6' }} /> Pending Maint
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#8b5cf6' }} /> Maint
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#78350f' }} /> Pending Repair
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#78350f' }} /> Repair
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#fbbf24' }} /> Degraded
@@ -239,209 +265,172 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {filteredNodes.map((node) => {
-            const isSelected = selectedNode?.id === node.id;
-            const isPendingMaint = node.maintStatus === 'pending';
-            const isPendingRepair = node.repairStatus === 'pending';
-            
-            // Base colors matching ClusterDirectorV2
-            const colors = {
-              healthy: '#67e8f9', // Cyan-300
-              degraded: '#fbbf24', // Amber-400
-              unhealthy: '#f43f5e', // Rose-500
-              pending: '#8b5cf6', // Violet-500
-              repair: '#78350f', // Brown-900
-            };
-
-            const baseColor = node.status === 'healthy' ? colors.healthy : 
-                             node.status === 'degraded' ? colors.degraded : colors.unhealthy;
-            
-            let background = baseColor;
-            if (isPendingMaint) {
-              background = `linear-gradient(135deg, ${baseColor} 50%, ${colors.pending} 50%)`;
-            } else if (isPendingRepair) {
-              background = `linear-gradient(135deg, ${baseColor} 50%, ${colors.repair} 50%)`;
-            }
-
-            return (
-              <div 
-                key={node.id}
-                onClick={() => setSelectedNode(isSelected ? null : node)}
-                className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
-                style={{ background }}
-                title={`Node ${node.id} - ${node.status.toUpperCase()}${isPendingMaint ? ' (Pending Maintenance)' : ''}${isPendingRepair ? ' (Pending Repair)' : ''}`}
-              />
-            );
-          })}
-        </div>
-
-        {/* Node Detail Overlay */}
-        {selectedNode && (
-          <div className="mt-8 border-t border-slate-100 pt-6">
-            <UnifiedNodeDetail 
-              nodeIdx={selectedNode.id}
-              blockLabel="Job Allocation"
-              healthStatus={selectedNode.status}
-              maintStatus={selectedNode.maintStatus}
-              repairStatus={selectedNode.repairStatus}
-              hasVM={true}
-              onJobClick={onJobClick}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Performance Metrics Section */}
-      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+        {/* Node Grid Section */}
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <TrendingUp size={16} className="text-[#1967D2]" />
-              Job Performance Metrics
+              Allocated Nodes ({filteredNodes.length})
+              <Info size={14} className="text-slate-400 cursor-help" />
             </h3>
-            <p className="text-[10px] text-slate-500 mt-0.5">Real-time GPU telemetry across allocated resources</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2 py-1">
-              <Filter size={12} className="text-slate-400" />
-              <select 
-                value={filterBlock}
-                onChange={(e) => {
-                  setFilterBlock(e.target.value);
-                  setFilterSubblock('All Subblocks');
-                  setFilterNode('All Nodes');
-                }}
-                className="bg-transparent text-[10px] font-bold text-slate-600 focus:outline-none cursor-pointer"
-              >
-                {blocks.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2 py-1">
-              <select 
-                value={filterSubblock}
-                onChange={(e) => {
-                  setFilterSubblock(e.target.value);
-                  setFilterNode('All Nodes');
-                }}
-                className="bg-transparent text-[10px] font-bold text-slate-600 focus:outline-none cursor-pointer"
-              >
-                {subblocks.map(sb => <option key={sb} value={sb}>{sb}</option>)}
-              </select>
-            </div>
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2 py-1">
-              <select 
-                value={filterNode}
-                onChange={(e) => setFilterNode(e.target.value)}
-                className="bg-transparent text-[10px] font-bold text-slate-600 focus:outline-none cursor-pointer"
-              >
-                {nodeOptions.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
+          <div className="flex flex-wrap gap-1.5">
+            {filteredNodes.map((node) => {
+              const isSelected = selectedNode?.id === node.id;
+              const isPendingMaint = node.maintStatus === 'pending';
+              const isPendingRepair = node.repairStatus === 'pending';
+              
+              const colors = {
+                healthy: '#67e8f9',
+                degraded: '#fbbf24',
+                unhealthy: '#f43f5e',
+                pending: '#8b5cf6',
+                repair: '#78350f',
+              };
+
+              const baseColor = node.status === 'healthy' ? colors.healthy : 
+                               node.status === 'degraded' ? colors.degraded : colors.unhealthy;
+              
+              let background = baseColor;
+              if (isPendingMaint) {
+                background = `linear-gradient(135deg, ${baseColor} 50%, ${colors.pending} 50%)`;
+              } else if (isPendingRepair) {
+                background = `linear-gradient(135deg, ${baseColor} 50%, ${colors.repair} 50%)`;
+              }
+
+              return (
+                <div 
+                  key={node.id}
+                  onClick={() => setSelectedNode(isSelected ? null : node)}
+                  className={`w-6 h-5 rounded-[2px] cursor-pointer transition-all flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110 z-10' : 'hover:opacity-80'}`}
+                  style={{ background }}
+                  title={`Node ${node.id} - ${node.status.toUpperCase()}${isPendingMaint ? ' (Pending Maintenance)' : ''}${isPendingRepair ? ' (Pending Repair)' : ''}`}
+                />
+              );
+            })}
           </div>
+
+          {/* Node Detail Overlay */}
+          {selectedNode && (
+            <div className="mt-8 border-t border-slate-100 pt-6">
+              <UnifiedNodeDetail 
+                nodeIdx={selectedNode.id}
+                blockLabel="Job Allocation"
+                healthStatus={selectedNode.status}
+                maintStatus={selectedNode.maintStatus}
+                repairStatus={selectedNode.repairStatus}
+                hasVM={true}
+                onJobClick={onJobClick}
+              />
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* GPU Temperature */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+        {/* Performance Metrics Section */}
+        <div className="p-6 space-y-6 bg-slate-50/30">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <TrendingUp size={16} className="text-[#1967D2]" />
+                Job Performance Metrics
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-0.5">Real-time GPU telemetry across allocated resources</p>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400">Showing {chartNodes.length} nodes</span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* GPU Temperature */}
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-rose-50 rounded">
                   <Thermometer size={14} className="text-rose-600" />
                 </div>
                 <span className="text-xs font-bold text-slate-700">GPU Temperature</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">Showing {chartNodes.length} nodes</span>
+              <div className="h-48 w-full bg-white rounded-lg border border-slate-200 p-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={multiSeriesData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="time" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={9} tickLine={false} axisLine={false} unit="°" />
+                    <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
+                    {chartNodes.map((node, i) => (
+                      <Line 
+                        key={node.id} 
+                        type="monotone" 
+                        dataKey={`temp_${node.id}`} 
+                        name={`Node ${node.id}`}
+                        stroke={['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#71717a'][i % 8]} 
+                        strokeWidth={1.5} 
+                        dot={false} 
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="h-48 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={multiSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="time" fontSize={9} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={9} tickLine={false} axisLine={false} unit="°" />
-                  <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
-                  {chartNodes.map((node, i) => (
-                    <Line 
-                      key={node.id} 
-                      type="monotone" 
-                      dataKey={`temp_${node.id}`} 
-                      name={`Node ${node.id}`}
-                      stroke={['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#71717a'][i % 8]} 
-                      strokeWidth={1.5} 
-                      dot={false} 
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
 
-          {/* GPU Power */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            {/* GPU Power */}
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-amber-50 rounded">
                   <Zap size={14} className="text-amber-600" />
                 </div>
                 <span className="text-xs font-bold text-slate-700">GPU Power Usage</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">Showing {chartNodes.length} nodes</span>
+              <div className="h-48 w-full bg-white rounded-lg border border-slate-200 p-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={multiSeriesData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="time" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={9} tickLine={false} axisLine={false} unit="W" />
+                    <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
+                    {chartNodes.map((node, i) => (
+                      <Line 
+                        key={node.id} 
+                        type="monotone" 
+                        dataKey={`power_${node.id}`} 
+                        name={`Node ${node.id}`}
+                        stroke={['#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#71717a', '#f43f5e', '#3b82f6', '#10b981'][i % 8]} 
+                        strokeWidth={1.5} 
+                        dot={false} 
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="h-48 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={multiSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="time" fontSize={9} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={9} tickLine={false} axisLine={false} unit="W" />
-                  <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
-                  {chartNodes.map((node, i) => (
-                    <Line 
-                      key={node.id} 
-                      type="monotone" 
-                      dataKey={`power_${node.id}`} 
-                      name={`Node ${node.id}`}
-                      stroke={['#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#71717a', '#f43f5e', '#3b82f6', '#10b981'][i % 8]} 
-                      strokeWidth={1.5} 
-                      dot={false} 
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
 
-          {/* SM Utilization */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            {/* SM Utilization */}
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-blue-50 rounded">
                   <Activity size={14} className="text-blue-600" />
                 </div>
                 <span className="text-xs font-bold text-slate-700">SM Utilization</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">Showing {chartNodes.length} nodes</span>
-            </div>
-            <div className="h-48 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={multiSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="time" fontSize={9} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={9} tickLine={false} axisLine={false} unit="%" />
-                  <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
-                  {chartNodes.map((node, i) => (
-                    <Line 
-                      key={node.id} 
-                      type="monotone" 
-                      dataKey={`util_${node.id}`} 
-                      name={`Node ${node.id}`}
-                      stroke={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#71717a', '#f43f5e'][i % 8]} 
-                      strokeWidth={1.5} 
-                      dot={false} 
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="h-48 w-full bg-white rounded-lg border border-slate-200 p-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={multiSeriesData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="time" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={9} tickLine={false} axisLine={false} unit="%" />
+                    <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
+                    {chartNodes.map((node, i) => (
+                      <Line 
+                        key={node.id} 
+                        type="monotone" 
+                        dataKey={`util_${node.id}`} 
+                        name={`Node ${node.id}`}
+                        stroke={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#71717a', '#f43f5e'][i % 8]} 
+                        strokeWidth={1.5} 
+                        dot={false} 
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
