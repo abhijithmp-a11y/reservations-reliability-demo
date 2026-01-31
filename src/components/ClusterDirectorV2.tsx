@@ -466,10 +466,26 @@ export const UnifiedNodeDetail: React.FC<{
 
   return (
     <div className="col-span-full mt-4 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden animate-fadeIn">
+      {!hasVM && (maintStatus === 'pending' || maintStatus === 'inprogress') && (
+        <div 
+          className="h-1 w-full" 
+          style={{ 
+            background: `linear-gradient(90deg, transparent 50%, ${maintStatus === 'pending' ? COLORS.maintenance.pending : COLORS.maintenance.inprogress} 50%)` 
+          }} 
+        />
+      )}
       {/* Header */}
       <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
         <div>
           <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            {!hasVM && (maintStatus === 'pending' || maintStatus === 'inprogress') && (
+              <div 
+                className="w-3 h-3 rounded-[2px] shrink-0 shadow-sm border border-slate-200" 
+                style={{ 
+                  background: `linear-gradient(135deg, transparent 50%, ${maintStatus === 'pending' ? COLORS.maintenance.pending : COLORS.maintenance.inprogress} 50%)` 
+                }} 
+              />
+            )}
             Node {nodeIdx} Comprehensive Diagnostics ({blockLabel})
           </h4>
           <p className="text-[10px] text-slate-500">Unified view of health, software stack, and recent diagnostic runs</p>
@@ -781,8 +797,8 @@ export const ClusterDirectorV2: React.FC<{
     if (mode === 'MAINTENANCE') {
       if (key % 12 === 0) return COLORS.maintenance.inprogress;
       if (key % 8 === 0) return COLORS.maintenance.available;
-      // Specific keys for pending: 3, 7, 12, 22, 28
-      if (key % 17 === 0 || [3, 7, 12, 22, 28].includes(key)) return COLORS.maintenance.pending;
+      // Specific keys for pending: 3, 7, 12, 14, 22, 28, 35
+      if (key % 17 === 0 || [3, 7, 12, 14, 22, 28, 35].includes(key)) return COLORS.maintenance.pending;
       return COLORS.maintenance.uptodate;
     }
     
@@ -1701,7 +1717,11 @@ export const ClusterDirectorV2: React.FC<{
                                                        : (isPendingRepair 
                                                           ? `linear-gradient(135deg, ${healthColor} 50%, ${COLORS.repair.pending} 50%)`
                                                           : healthColor)))
-                                                : 'transparent',
+                                                : (isPendingMaint 
+                                                    ? `linear-gradient(135deg, transparent 50%, ${COLORS.maintenance.pending} 50%)`
+                                                    : (isOngoingMaint 
+                                                       ? `linear-gradient(135deg, transparent 50%, ${COLORS.maintenance.inprogress} 50%)`
+                                                       : 'transparent')),
                                               border: hasVM ? 'none' : (isInRepair ? `1.5px solid ${COLORS.repair.inprogress}` : `1.5px solid ${healthColor}`)
                                             }}
                                             onClick={() => {
