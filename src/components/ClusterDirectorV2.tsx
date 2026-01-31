@@ -692,12 +692,22 @@ export const UnifiedNodeDetail: React.FC<{
   );
 };
 
-const HealthTooltip = ({ content, children }: { content: string; children: React.ReactNode }) => (
+const HealthTooltip = ({ content, children, align = 'center' }: { content: string; children: React.ReactNode; align?: 'left' | 'center' | 'right' }) => (
   <div className="group relative inline-block">
     {children}
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none text-center font-normal">
+    <div className={`
+      absolute bottom-full mb-2 w-max max-w-[220px] p-2.5 bg-slate-900 text-white text-[10px] leading-relaxed rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none font-normal whitespace-normal border border-white/10 backdrop-blur-sm
+      ${align === 'center' ? 'left-1/2 -translate-x-1/2 text-center' : ''}
+      ${align === 'left' ? 'left-0 text-left' : ''}
+      ${align === 'right' ? 'right-0 text-right' : ''}
+    `}>
       {content}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+      <div className={`
+        absolute top-full border-[6px] border-transparent border-t-slate-900
+        ${align === 'center' ? 'left-1/2 -translate-x-1/2' : ''}
+        ${align === 'left' ? 'left-4' : ''}
+        ${align === 'right' ? 'right-4' : ''}
+      `} />
     </div>
   </div>
 );
@@ -990,13 +1000,13 @@ export const ClusterDirectorV2: React.FC<{
                      />
                   </div>
                   <div className="flex justify-between text-[11px] font-bold">
-                     <HealthTooltip content="A block is Healthy if all its subblocks are fully healthy (18/18 nodes).">
+                     <HealthTooltip align="left" content="A block is Healthy if all its subblocks are fully healthy (18/18 nodes).">
                         <div className="flex items-center gap-2 text-cyan-600 cursor-help">
                            <div className="w-2 h-2 rounded-full bg-cyan-400" />
                            Healthy: {reconciledMetrics.healthyBlocks}
                         </div>
                      </HealthTooltip>
-                     <HealthTooltip content="A block is Unhealthy if it contains at least one subblock that is Schedulable or Unhealthy.">
+                     <HealthTooltip align="right" content="A block is Unhealthy if it contains at least one subblock that is Schedulable or Unhealthy.">
                         <div className="flex items-center gap-2 text-rose-600 cursor-help">
                            Unhealthy: {reconciledMetrics.unhealthyBlocks}
                            <div className="w-2 h-2 rounded-full bg-rose-500" />
@@ -1049,7 +1059,7 @@ export const ClusterDirectorV2: React.FC<{
                      />
                   </div>
                   <div className="flex justify-between text-[11px] font-bold">
-                     <HealthTooltip content="A subblock is Healthy if 18 out of 18 machines are healthy.">
+                     <HealthTooltip align="left" content="A subblock is Healthy if 18 out of 18 machines are healthy.">
                         <div className="flex items-center gap-2 text-cyan-600 cursor-help">
                            <div className="w-2 h-2 rounded-full bg-cyan-400" />
                            Healthy: {reconciledMetrics.healthySubblocks}
@@ -1061,7 +1071,7 @@ export const ClusterDirectorV2: React.FC<{
                            Schedulable: {reconciledMetrics.schedulableSubblocks}
                         </div>
                      </HealthTooltip>
-                     <HealthTooltip content="A subblock is Unhealthy if fewer than 16 machines are healthy. Critical failure state.">
+                     <HealthTooltip align="right" content="A subblock is Unhealthy if fewer than 16 machines are healthy. Critical failure state.">
                         <div className="flex items-center gap-2 text-rose-600 cursor-help">
                            Unhealthy: {reconciledMetrics.unhealthySubblocks}
                            <div className="w-2 h-2 rounded-full bg-rose-500" />
