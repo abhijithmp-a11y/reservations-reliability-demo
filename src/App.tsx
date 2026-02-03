@@ -78,7 +78,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Simulation',
     orchestrator: 'GKE (Kueue)',
     recentEvent: 'Job started successfully',
-    reservation: 'iowa-central-reservation1',
+    reservation: 'us-west8-reservation1',
   },
   {
     id: 'job-alpha-102',
@@ -106,7 +106,7 @@ const MOCK_JOBS: Job[] = [
     computeIdleTime: '12%',
     memoryBwUtil: 78,
     recentEvent: 'Scaling to 1024 chips',
-    reservation: 'us-west-reservation2',
+    reservation: 'us-central1-reservation2',
   },
   {
     id: 'job-recent-001',
@@ -181,7 +181,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Training',
     orchestrator: 'GKE',
     recentEvent: 'Node failure detected',
-    reservation: 'iowa-central-reservation1',
+    reservation: 'us-west8-reservation1',
   },
   {
     id: 'job-gamma-332',
@@ -204,7 +204,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Inference',
     orchestrator: 'Ray',
     recentEvent: 'Awaiting resource allocation',
-    reservation: 'us-west-reservation2',
+    reservation: 'us-central1-reservation2',
   },
   {
     id: 'job-delta-404',
@@ -275,7 +275,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Training',
     orchestrator: 'GKE',
     recentEvent: 'Gradient overflow detected',
-    reservation: 'iowa-central-reservation1',
+    reservation: 'us-west8-reservation1',
   },
   {
     id: 'job-theta-222',
@@ -299,7 +299,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Inference',
     orchestrator: 'Ray',
     recentEvent: 'Autoscaling triggered',
-    reservation: 'us-west-reservation2',
+    reservation: 'us-central1-reservation2',
   },
   {
     id: 'job-iota-333',
@@ -370,7 +370,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Training',
     orchestrator: 'GKE (Kueue)',
     recentEvent: 'Checkpoint saved',
-    reservation: 'iowa-central-reservation1',
+    reservation: 'us-west8-reservation1',
   },
   {
     id: 'job-mu-666',
@@ -394,7 +394,7 @@ const MOCK_JOBS: Job[] = [
     jobType: 'Inference',
     orchestrator: 'GKE',
     recentEvent: 'Healthy',
-    reservation: 'us-west-reservation2',
+    reservation: 'us-central1-reservation2',
   },
   {
     id: 'job-nu-777',
@@ -706,7 +706,7 @@ export default function App() {
 
         if (activeTab === 'director-bulk') {
             list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
-            list.push({ id: 'director-bulk', label: 'Reservation details (bulk)', active: true });
+            list.push({ id: 'director-bulk', label: 'Reservation details (extended)', active: true });
             return list;
         }
 

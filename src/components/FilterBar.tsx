@@ -8,7 +8,7 @@ const FILTER_OPTIONS = {
   jobType: ['All', 'Training', 'Inference'],
   orchestrator: ['All', 'Reservation details', 'Compute Engine', 'Google Kubernetes Engine', 'Vertex AI', 'Slurm', 'Custom'],
   timeRange: ['Last 1 hour', 'Last 12 hours', 'Last 24 hours', 'Last 7 days', 'All time'],
-  reservation: ['All', 'iowa-central-reservation1', 'us-west-reservation2', 'europe-north-reservation3', 'asia-south-reservation4']
+  reservation: ['All', 'us-west8-reservation1', 'us-central1-reservation2', 'europe-north-reservation3', 'asia-south-reservation4']
 };
 
 interface FilterBarProps {

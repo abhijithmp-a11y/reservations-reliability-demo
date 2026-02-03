@@ -268,6 +268,47 @@ export const UnifiedNodeDetail: React.FC<{
                 </div>
                 <div className="text-xs font-mono font-bold text-slate-700">{maintConfig.driver}</div>
               </div>
+              {maintStatus === 'pending' && (
+                <div className="bg-violet-50 p-2.5 rounded border border-violet-100 mt-2 space-y-2">
+                  <div>
+                    <div className="text-[9px] text-violet-600 uppercase font-bold mb-1">Future Version</div>
+                    <div className="flex justify-between items-center">
+                      <div className="text-xs font-mono font-bold text-violet-700">v535.160.01</div>
+                      <button className="text-[10px] font-bold text-white bg-violet-600 px-2 py-1 rounded hover:bg-violet-700 transition-colors shadow-sm">
+                        Update now
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-violet-200/50">
+                    <div>
+                      <div className="text-[9px] text-violet-500 uppercase font-bold">Scheduled Start</div>
+                      <div className="text-[10px] font-bold text-violet-700">Jan 25, 04:00 AM</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-violet-500 uppercase font-bold">Est. Duration</div>
+                      <div className="text-[10px] font-bold text-violet-700">45 minutes</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {maintStatus === 'inprogress' && (
+                <div className="bg-pink-50 p-2.5 rounded border border-pink-100 mt-2 space-y-2">
+                  <div>
+                    <div className="text-[9px] text-pink-600 uppercase font-bold mb-1">Maintenance Started</div>
+                    <div className="text-[10px] font-bold text-pink-700">Jan 27, 09:15 AM</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-pink-200/50">
+                    <div>
+                      <div className="text-[9px] text-pink-500 uppercase font-bold">Progress</div>
+                      <div className="text-[10px] font-bold text-pink-700">65% Complete</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-pink-500 uppercase font-bold">Est. Remaining</div>
+                      <div className="text-[10px] font-bold text-pink-700">15 minutes</div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
                 <div className="text-[9px] text-slate-400 uppercase font-bold mb-1">CUDA Version</div>
                 <div className="text-xs font-mono font-bold text-slate-700">v12.2.1</div>
@@ -725,6 +766,16 @@ export const ClusterDirectorBulk: React.FC<{
 
   return (
     <div className="space-y-4 font-sans text-slate-900 pb-10">
+      
+      <div className="mb-6">
+        <h1 className="text-lg font-bold text-slate-900">us-central1-reservation2</h1>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded uppercase tracking-wider border border-blue-100">Extended Reservation</span>
+          <span className="text-slate-300">•</span>
+          <span className="text-xs text-slate-500">us-central1-a</span>
+        </div>
+      </div>
+
       {onBack && (
         <div className="flex justify-between items-center mb-2">
           <button onClick={onBack} className="text-slate-500 hover:text-[#1967D2] text-xs flex items-center gap-1 font-medium transition-colors"><ArrowLeft size={14} /> Back to fleet</button>
@@ -739,7 +790,7 @@ export const ClusterDirectorBulk: React.FC<{
               <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{value: 100}]} innerRadius={32} outerRadius={40} dataKey="value" stroke="none"><Cell fill="#1a73e8" /></Pie></PieChart></ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-lg font-bold text-slate-800">{reconciledMetrics.nodesWithVM}</span><span className="text-[9px] text-slate-500 uppercase font-bold">Used</span></div>
             </div>
-            <div><h4 className="text-sm font-medium text-slate-800 mb-1">VMs used</h4><p className="text-xs text-slate-500">Bulk Reservation</p></div>
+            <div><h4 className="text-sm font-medium text-slate-800 mb-1">VMs used</h4><p className="text-xs text-slate-500">Extended Reservation</p></div>
           </div>
           <div className="md:pl-8 pt-6 md:pt-0">
             <h4 className="text-sm font-medium text-slate-800 mb-1">Unused capacity</h4>
@@ -748,7 +799,7 @@ export const ClusterDirectorBulk: React.FC<{
           </div>
           <div className="md:pl-8 pt-6 md:pt-0">
             <div className="flex items-center gap-1.5 mb-1"><h4 className="text-sm font-medium text-slate-800">Maintenance and Repairs</h4><HelpCircle size={14} className="text-slate-400 cursor-help" /></div>
-            <p className="text-xs text-slate-500 leading-relaxed">Maintenance and Repairs affecting this bulk reservation. <button onClick={() => handleTabChange('MAINTENANCE')} className="text-[#1a73e8] hover:underline font-medium">View details</button></p>
+            <p className="text-xs text-slate-500 leading-relaxed">Maintenance and Repairs affecting this extended reservation. <button onClick={() => handleTabChange('MAINTENANCE')} className="text-[#1a73e8] hover:underline font-medium">View details</button></p>
           </div>
         </div>
 
@@ -771,29 +822,99 @@ export const ClusterDirectorBulk: React.FC<{
 
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            <button onClick={() => setBasicsOpen(!basicsOpen)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"><h3 className="text-lg font-medium text-slate-900">Reservation basics</h3><ChevronDown size={20} className={`text-slate-400 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} /></button>
+            <button onClick={() => setBasicsOpen(!basicsOpen)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <h3 className="text-lg font-medium text-slate-900">Reservation basics</h3>
+              <ChevronDown size={20} className={`text-slate-400 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
+            </button>
             {basicsOpen && (
               <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
                 <div className="border border-slate-200 rounded overflow-hidden mt-4">
-                  <table className="w-full text-sm"><tbody className="divide-y divide-slate-100">
-                    {[{ label: 'Status', value: <span className="text-emerald-700 font-bold">Ready</span> }, { label: 'Location', value: 'us-central1-a' }, { label: 'Number of blocks', value: '30' }, { label: 'Number of subblocks', value: '240' }, { label: 'Total Nodes', value: reconciledMetrics.totalNodes.toString() }].map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors"><td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td><td className="py-2.5 px-4 text-slate-900">{row.value}</td></tr>
-                    ))}
-                  </tbody></table>
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-slate-100">
+                      {[
+                        { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
+                        { label: 'Assured count', value: reconciledMetrics.totalNodes.toString() },
+                        { label: 'Creation time', value: 'January 12, 2026, 10:30 AM' },
+                        { label: 'Auto-delete time', value: 'March 12, 2026, 12:00 AM' },
+                        { label: 'Location', value: 'us-central1-a' },
+                        { label: 'Number of blocks', value: '30' },
+                        { label: 'Number of subblocks', value: '240' },
+                        { label: 'Health status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Healthy</span> },
+                        { label: 'Healthy subblocks', value: reconciledMetrics.healthySubblocks.toString() },
+                        { label: 'Unhealthy subblocks', value: reconciledMetrics.unhealthySubblocks.toString() },
+                        { label: 'Deployment type', value: 'Extended' },
+                        { label: 'Maintenance mode', value: 'Grouped' },
+                        { label: 'Operational mode', value: 'All capacity' },
+                        { label: 'Description', value: 'Large scale training reservation' },
+                        { label: 'Linked Commitments', value: 'C-99088-Extended' },
+                        { label: 'Share with other Google services', value: <div className="flex items-center justify-between w-full"><span>No</span> <Pencil size={14} className="text-[#1a73e8] cursor-pointer" /></div> },
+                        { label: 'Share type', value: 'Organization' },
+                        { label: 'Shared with', value: 'All projects' },
+                        { label: 'Use with VM instance', value: 'Any' },
+                      ].map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
           </div>
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            <button onClick={() => setConfigOpen(!configOpen)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"><h3 className="text-lg font-medium text-slate-900">Configuration details</h3><ChevronDown size={20} className={`text-slate-400 transition-transform ${configOpen ? 'rotate-180' : ''}`} /></button>
+            <button onClick={() => setConfigOpen(!configOpen)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <h3 className="text-lg font-medium text-slate-900">Configuration details</h3>
+              <ChevronDown size={20} className={`text-slate-400 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
+            </button>
             {configOpen && (
               <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
                 <div className="border border-slate-200 rounded overflow-hidden mt-4">
-                  <table className="w-full text-sm"><tbody className="divide-y divide-slate-100">
-                    {[{ label: 'Machine type', value: 'a3-highgpu-8g' }, { label: 'Accelerator type', value: 'NVIDIA H100' }, { label: 'Accelerator count', value: '8' }].map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors"><td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td><td className="py-2.5 px-4 text-slate-900">{row.value}</td></tr>
-                    ))}
-                  </tbody></table>
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-slate-100">
+                      {[
+                        { label: 'Number of VM instances', value: reconciledMetrics.totalNodes.toString() },
+                        { label: 'VMs in use', value: reconciledMetrics.nodesWithVM.toString() },
+                        { label: 'Machine type', value: 'a3-highgpu-8g' },
+                        { label: 'vCPUs', value: '208' },
+                        { label: 'Memory', value: '1872 GB' },
+                        { label: 'Min CPU Platform', value: 'Intel Sapphire Rapids' },
+                        { label: 'Placement policy', value: 'Compact' },
+                      ].map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                        </tr>
+                      ))}
+                      {/* Accelerators Sub-header */}
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Accelerators</td>
+                      </tr>
+                      {[
+                        { label: 'Accelerator type', value: 'NVIDIA H100' },
+                        { label: 'Accelerator count', value: '8' },
+                      ].map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                        </tr>
+                      ))}
+                      {/* Local SSDs Sub-header */}
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Local SSDs</td>
+                      </tr>
+                      {[
+                        { label: 'Local SSD count', value: '16' },
+                        { label: 'Interface', value: 'NVME' },
+                      ].map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

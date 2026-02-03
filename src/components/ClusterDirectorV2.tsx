@@ -622,6 +622,24 @@ export const UnifiedNodeDetail: React.FC<{
                 </div>
               </div>
             )}
+            {maintStatus === 'inprogress' && (
+              <div className="bg-pink-50 p-2.5 rounded border border-pink-100 mt-2 space-y-2">
+                <div>
+                  <div className="text-[9px] text-pink-600 uppercase font-bold mb-1">Maintenance Started</div>
+                  <div className="text-[10px] font-bold text-pink-700">Jan 27, 09:15 AM</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-pink-200/50">
+                  <div>
+                    <div className="text-[9px] text-pink-500 uppercase font-bold">Progress</div>
+                    <div className="text-[10px] font-bold text-pink-700">65% Complete</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-pink-500 uppercase font-bold">Est. Remaining</div>
+                    <div className="text-[10px] font-bold text-pink-700">15 minutes</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
               <div className="flex justify-between items-center mb-1">
@@ -1268,6 +1286,15 @@ export const ClusterDirectorV2: React.FC<{
   return (
     <div className="space-y-4 font-sans text-slate-900 pb-10">
       
+      <div className="mb-6">
+        <h1 className="text-lg font-bold text-slate-900">us-west8-reservation1</h1>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase tracking-wider">Standard Reservation</span>
+          <span className="text-slate-300">•</span>
+          <span className="text-xs text-slate-500">us-west8-a</span>
+        </div>
+      </div>
+
       {onBack && (
         <div className="flex justify-between items-center mb-2">
           <button onClick={onBack} className="text-slate-500 hover:text-[#1967D2] text-xs flex items-center gap-1 font-medium transition-colors">
