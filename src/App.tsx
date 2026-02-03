@@ -43,6 +43,7 @@ import { DiagnosticsPanel } from '@/components/DiagnosticsPanel';
 import { DiagnosticsRuns } from '@/components/DiagnosticsRuns';
 import { ClusterTopology, REGIONS } from '@/components/ClusterTopology';
 import { ClusterDirectorV2 } from '@/components/ClusterDirectorV2';
+import { ClusterDirectorBulk } from '@/components/ClusterDirectorBulk';
 import { ProjectTopology } from '@/components/ProjectTopology';
 import { ScenarioGuide, SCENARIOS } from '@/components/ScenarioGuide';
 import { Job, JobStatus, GoodputType, DashboardFilters } from '@/types';
@@ -537,7 +538,7 @@ const NAV_GROUPS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   // View state controls sub-views within tabs (e.g. List vs Detail)
-  const [view, setView] = useState<'dashboard' | 'diagnostics' | 'diagnostics-list' | 'cluster-detail' | 'reservation-detail' | 'fleet-detail'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'diagnostics' | 'diagnostics-list' | 'cluster-detail' | 'reservation-detail' | 'fleet-detail' | 'reservation-bulk'>('dashboard');
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     'tools': true,
     'solutions': true
@@ -700,6 +701,12 @@ export default function App() {
         if (activeTab === 'director') {
             list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
             list.push({ id: 'director', label: 'Reservation details', active: true });
+            return list;
+        }
+
+        if (activeTab === 'director-bulk') {
+            list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
+            list.push({ id: 'director-bulk', label: 'Reservation details (bulk)', active: true });
             return list;
         }
 
@@ -1190,6 +1197,17 @@ export default function App() {
                      <span>Reservation details</span>
                    </button>
 
+                   <button 
+                     onClick={() => handleTabChange('director-bulk')}
+                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors border-l-2 ${
+                       activeTab === 'director-bulk' 
+                         ? 'bg-[#1967D2]/10 text-[#1967D2] border-[#1967D2]' 
+                         : 'text-slate-600 hover:bg-slate-50 border-transparent hover:border-slate-300'
+                     }`}
+                   >
+                     <span>Reservation details (bulk)</span>
+                   </button>
+
                 {NAV_GROUPS.map(group => (
                   <div key={group.id}>
                     <button 
@@ -1255,6 +1273,17 @@ export default function App() {
                        }}
                      /> 
                   )}
+               </div>
+            )}
+
+            {activeTab === 'director-bulk' && (
+               <div className="space-y-4 animate-fadeIn">
+                  <ClusterDirectorBulk 
+                    onJobClick={(jobId) => {
+                      const job = MOCK_JOBS.find(j => j.id === jobId) || MOCK_JOBS[0];
+                      handleViewJob(job);
+                    }}
+                  />
                </div>
             )}
 

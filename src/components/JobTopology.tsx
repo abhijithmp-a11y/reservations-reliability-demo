@@ -315,7 +315,7 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
             <div className="mt-8 border-t border-slate-100 pt-6">
               <UnifiedNodeDetail 
                 nodeIdx={selectedNode.id}
-                blockLabel="Job Allocation"
+                hierarchyLabel={`${selectedNode.block}/${selectedNode.subblock}`}
                 healthStatus={selectedNode.status}
                 maintStatus={selectedNode.maintStatus}
                 repairStatus={selectedNode.repairStatus}

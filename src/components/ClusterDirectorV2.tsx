@@ -432,13 +432,13 @@ const NodeMaintenanceDetail: React.FC<{
 
 export const UnifiedNodeDetail: React.FC<{ 
   nodeIdx: number; 
-  blockLabel: string; 
+  hierarchyLabel: string; 
   healthStatus: 'healthy' | 'degraded' | 'unhealthy';
   maintStatus: 'uptodate' | 'available' | 'inprogress' | 'pending';
   repairStatus?: 'none' | 'pending' | 'inprogress';
   hasVM: boolean;
   onJobClick?: (jobId: string) => void;
-}> = ({ nodeIdx, blockLabel, healthStatus, maintStatus, repairStatus = 'none', hasVM, onJobClick }) => {
+}> = ({ nodeIdx, hierarchyLabel, healthStatus, maintStatus, repairStatus = 'none', hasVM, onJobClick }) => {
   const healthConfig = {
     healthy: { color: 'bg-cyan-500', textColor: 'text-cyan-700', label: 'HEALTHY', detailValue: 'Normal', action: null },
     degraded: { color: 'bg-amber-500', textColor: 'text-amber-700', label: 'DEGRADED', detailValue: hasVM ? 'High Latency' : 'Maintenance State', action: 'Investigate metrics' },
@@ -486,7 +486,7 @@ export const UnifiedNodeDetail: React.FC<{
                 }} 
               />
             )}
-            Node {nodeIdx} Comprehensive Diagnostics ({blockLabel})
+            Node {nodeIdx} Diagnostics • <span className="text-[#1967D2]">{hierarchyLabel}</span>
           </h4>
           <p className="text-[10px] text-slate-500">Unified view of health, software stack, and recent diagnostic runs</p>
         </div>
@@ -1667,7 +1667,7 @@ export const ClusterDirectorV2: React.FC<{
                                 const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
 
                                 return (
-                                  <div key={block.id}>
+                                  <React.Fragment key={block.id}>
                                     <div className="flex justify-between items-center mb-1.5">
                                       <div className="flex items-center gap-1.5">
                                         <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subblock</h5>
@@ -1750,27 +1750,25 @@ export const ClusterDirectorV2: React.FC<{
                                         );
                                       })}
                                     </div>
-                                  </div>
-                                );
-                              })}
-
-                              {/* Inline Unified Detail */}
-                              {selectedNode && selectedNode.sbId === sb.id && (
-                                <UnifiedNodeDetail 
-                                  nodeIdx={selectedNode.nodeIdx} 
-                                  blockLabel={sb.subblocks.find(b => b.id === selectedNode.blockId)?.label || ''} 
-                                  healthStatus={selectedNode.status}
-                                  maintStatus={(() => {
-                                    const color = getNodeColor(originalSbIdx, sb.subblocks.findIndex(b => b.id === selectedNode.blockId), selectedNode.nodeIdx, 'MAINTENANCE');
-                                    return color === COLORS.maintenance.inprogress ? 'inprogress' :
-                                           color === COLORS.maintenance.available ? 'available' : 
-                                           color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
-                                  })()}
-                                  repairStatus={selectedNode.repairStatus}
-                                  hasVM={selectedNode.hasVM}
-                                  onJobClick={onJobClick}
-                                />
-                              )}
+                                  {selectedNode && selectedNode.sbId === sb.id && selectedNode.blockId === block.id && (
+                                    <UnifiedNodeDetail 
+                                      nodeIdx={selectedNode.nodeIdx} 
+                                      hierarchyLabel={`B${originalSbIdx + 1}/B${originalSbIdx + 1}-sb${bIdx + 1}`} 
+                                      healthStatus={selectedNode.status}
+                                      maintStatus={(() => {
+                                        const color = getNodeColor(originalSbIdx, bIdx, selectedNode.nodeIdx, 'MAINTENANCE');
+                                        return color === COLORS.maintenance.inprogress ? 'inprogress' :
+                                               color === COLORS.maintenance.available ? 'available' : 
+                                               color === COLORS.maintenance.pending ? 'pending' : 'uptodate';
+                                      })()}
+                                      repairStatus={selectedNode.repairStatus}
+                                      hasVM={selectedNode.hasVM}
+                                      onJobClick={onJobClick}
+                                    />
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
                             </div>
                           )}
                         </div>
