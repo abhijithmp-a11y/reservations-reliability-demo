@@ -1152,83 +1152,46 @@ export const ClusterDirectorV2: React.FC<{
         );
 
       case 'MAINTENANCE':
-        const maintChartData = [
-          { name: 'Blocks', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending },
-          { name: 'Subblocks', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending },
-          { name: 'VMs', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount },
+        const combinedChartData = [
+          { name: 'Blocks (M)', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending, type: 'MAINT' },
+          { name: 'Subblocks (M)', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending, type: 'MAINT' },
+          { name: 'VMs (M)', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount, type: 'MAINT' },
+          { name: 'Subblocks (R)', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending, type: 'REPAIR' },
+          { name: 'Machines (R)', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount, type: 'REPAIR' },
         ];
 
-        const repairChartData = [
-          { name: 'Subblocks', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending },
-          { name: 'Machines', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount },
-        ];
-
-        const CustomMaintTooltip = ({ active, payload }: any) => {
+        const CustomCombinedTooltip = ({ active, payload }: any) => {
           if (active && payload && payload.length) {
             const data = payload[0].payload;
             const isOngoing = payload[0].dataKey === 'ongoing';
+            const isMaint = data.type === 'MAINT';
+            
             return (
               <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
                 <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
-                  {data.name} Maintenance
+                  {data.name} {isMaint ? 'Maintenance' : 'Repair'}
                 </div>
                 {isOngoing ? (
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-pink-500" />
-                      <span className="font-bold text-pink-400">Ongoing:</span> {data.ongoing} units
+                      <div className={`w-1.5 h-1.5 rounded-full ${isMaint ? 'bg-pink-500' : 'bg-[#451a03]'}`} />
+                      <span className={`font-bold ${isMaint ? 'text-pink-400' : 'text-amber-600'}`}>
+                        {isMaint ? 'Ongoing:' : 'In Repair:'}
+                      </span> {data.ongoing} units
                     </div>
                     <div className="text-slate-300 pl-3.5">
-                      Started: Jan 30, 08:00 AM<br />
-                      Expected end: Jan 30, 11:00 AM
+                      {isMaint ? 'Status: Applying updates' : 'Status: Active repair session'}<br />
+                      {isMaint ? 'Est. Completion: 20m' : 'Technician: Assigned'}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                      <span className="font-bold text-violet-400">Pending:</span> {data.pending} units
+                      <div className={`w-1.5 h-1.5 rounded-full ${isMaint ? 'bg-violet-500' : 'bg-[#78350f]'}`} />
+                      <span className={`font-bold ${isMaint ? 'text-violet-400' : 'text-amber-800'}`}>Pending:</span> {data.pending} units
                     </div>
                     <div className="text-slate-300 pl-3.5">
-                      Expected start: Jan 30, 02:00 PM<br />
-                      Expected end: Jan 30, 04:00 PM
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          }
-          return null;
-        };
-
-        const CustomRepairTooltip = ({ active, payload }: any) => {
-          if (active && payload && payload.length) {
-            const data = payload[0].payload;
-            const isOngoing = payload[0].dataKey === 'ongoing';
-            return (
-              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
-                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
-                  {data.name} Repair
-                </div>
-                {isOngoing ? (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#451a03]" />
-                      <span className="font-bold text-amber-600">In Repair:</span> {data.ongoing} units
-                    </div>
-                    <div className="text-slate-300 pl-3.5">
-                      Status: Active repair session<br />
-                      Technician: Assigned
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#78350f]" />
-                      <span className="font-bold text-amber-800">Pending:</span> {data.pending} units
-                    </div>
-                    <div className="text-slate-300 pl-3.5">
-                      Status: Queued for repair<br />
+                      {isMaint ? 'Status: Scheduled' : 'Status: Queued for repair'}<br />
                       Priority: High
                     </div>
                   </div>
@@ -1240,85 +1203,63 @@ export const ClusterDirectorV2: React.FC<{
         };
 
         return (
-          <div className="p-6 space-y-10">
-            <div className="space-y-6">
+          <div className="p-6">
+            <div className="space-y-4">
               <div className="flex justify-between items-center mb-2">
                 <div>
-                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Maintenance</h4>
-                  <p className="text-xs text-slate-500">Ongoing vs Pending maintenance across hierarchy levels</p>
+                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fleet Events</h4>
+                  <p className="text-[10px] text-slate-500">Combined view of Maintenance (M) and Repairs (R)</p>
                 </div>
-                <div className="flex gap-4 text-[10px] font-bold">
-                  <div className="flex items-center gap-1.5 text-pink-600">
-                    <div className="w-2 h-2 rounded-full bg-pink-500" /> Ongoing
+                <div className="flex gap-4 text-[9px] font-bold">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-pink-600">
+                      <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Maint. Ongoing
+                    </div>
+                    <div className="flex items-center gap-1.5 text-violet-600">
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500" /> Maint. Pending
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-violet-600">
-                    <div className="w-2 h-2 rounded-full bg-violet-500" /> Pending
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-[#451a03]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#451a03]" /> Repair In-Progress
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[#78350f]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#78350f]" /> Repair Pending
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="h-48 w-full">
+              <div className="h-40 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={maintChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <BarChart data={combinedChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 
                       dataKey="name" 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                      tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }}
                     />
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      tick={{ fill: '#64748b', fontSize: 9 }}
                     />
-                    <Tooltip shared={false} content={<CustomMaintTooltip />} cursor={{ fill: '#f8fafc' }} />
-                    <Bar dataKey="ongoing" fill="#ec4899" radius={[4, 4, 0, 0]} barSize={40} />
-                    <Bar dataKey="pending" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Tooltip shared={false} content={<CustomCombinedTooltip />} cursor={{ fill: '#f8fafc' }} />
+                    <Bar dataKey="ongoing" radius={[2, 2, 0, 0]} barSize={32}>
+                      {combinedChartData.map((entry, index) => (
+                        <Cell key={`cell-ongoing-${index}`} fill={entry.type === 'MAINT' ? '#ec4899' : '#451a03'} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="pending" radius={[2, 2, 0, 0]} barSize={32}>
+                      {combinedChartData.map((entry, index) => (
+                        <Cell key={`cell-pending-${index}`} fill={entry.type === 'MAINT' ? '#8b5cf6' : '#78350f'} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-
-            <div className="space-y-6 pt-6 border-t border-slate-100">
-              <div className="flex justify-between items-center mb-2">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Repairs</h4>
-                  <p className="text-xs text-slate-500">Hardware repairs for subblocks and machines</p>
-                </div>
-                <div className="flex gap-4 text-[10px] font-bold">
-                  <div className="flex items-center gap-1.5 text-[#451a03]">
-                    <div className="w-2 h-2 rounded-full bg-[#451a03]" /> In Repair
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[#78350f]">
-                    <div className="w-2 h-2 rounded-full bg-[#78350f]" /> Pending
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={repairChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 10 }}
-                    />
-                    <Tooltip shared={false} content={<CustomRepairTooltip />} cursor={{ fill: '#f8fafc' }} />
-                    <Bar dataKey="ongoing" fill="#451a03" radius={[4, 4, 0, 0]} barSize={40} />
-                    <Bar dataKey="pending" fill="#78350f" radius={[4, 4, 0, 0]} barSize={40} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
           </div>
         );
     }

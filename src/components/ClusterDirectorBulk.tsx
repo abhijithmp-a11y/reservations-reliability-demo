@@ -653,56 +653,68 @@ export const ClusterDirectorBulk: React.FC<{
       );
     }
 
-    const maintChartData = [
-      { name: 'Blocks', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending },
-      { name: 'Subblocks', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending },
-      { name: 'VMs', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount },
-    ];
-    const repairChartData = [
-      { name: 'Subblocks', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending },
-      { name: 'Machines', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount },
+    const combinedChartData = [
+      { name: 'Blocks (M)', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending, type: 'MAINT' },
+      { name: 'Subblocks (M)', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending, type: 'MAINT' },
+      { name: 'VMs (M)', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount, type: 'MAINT' },
+      { name: 'Subblocks (R)', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending, type: 'REPAIR' },
+      { name: 'Machines (R)', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount, type: 'REPAIR' },
     ];
 
     return (
-      <div className="p-6 space-y-10">
-        <div className="space-y-6">
+      <div className="p-6">
+        <div className="space-y-4">
           <div className="flex justify-between items-center mb-2">
-            <div><h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Maintenance</h4><p className="text-xs text-slate-500">Ongoing vs Pending maintenance</p></div>
-            <div className="flex gap-4 text-[10px] font-bold">
-              <div className="flex items-center gap-1.5 text-pink-600"><div className="w-2 h-2 rounded-full bg-pink-500" /> Ongoing</div>
-              <div className="flex items-center gap-1.5 text-violet-600"><div className="w-2 h-2 rounded-full bg-violet-500" /> Pending</div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fleet Events</h4>
+              <p className="text-[10px] text-slate-500">Combined view of Maintenance (M) and Repairs (R)</p>
+            </div>
+            <div className="flex gap-4 text-[9px] font-bold">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-pink-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Maint. Ongoing
+                </div>
+                <div className="flex items-center gap-1.5 text-violet-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-violet-500" /> Maint. Pending
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-[#451a03]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#451a03]" /> Repair In-Progress
+                </div>
+                <div className="flex items-center gap-1.5 text-[#78350f]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#78350f]" /> Repair Pending
+                </div>
+              </div>
             </div>
           </div>
-          <div className="h-48 w-full">
+
+          <div className="h-40 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={maintChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
+              <BarChart data={combinedChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 9 }}
+                />
                 <Tooltip cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="ongoing" fill="#ec4899" radius={[4, 4, 0, 0]} barSize={40} />
-                <Bar dataKey="pending" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="space-y-6 pt-6 border-t border-slate-100">
-          <div className="flex justify-between items-center mb-2">
-            <div><h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Repairs</h4><p className="text-xs text-slate-500">Hardware repairs</p></div>
-            <div className="flex gap-4 text-[10px] font-bold">
-              <div className="flex items-center gap-1.5 text-[#451a03]"><div className="w-2 h-2 rounded-full bg-[#451a03]" /> In Repair</div>
-              <div className="flex items-center gap-1.5 text-[#78350f]"><div className="w-2 h-2 rounded-full bg-[#78350f]" /> Pending</div>
-            </div>
-          </div>
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={repairChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="ongoing" fill="#451a03" radius={[4, 4, 0, 0]} barSize={40} />
-                <Bar dataKey="pending" fill="#78350f" radius={[4, 4, 0, 0]} barSize={40} />
+                <Bar dataKey="ongoing" radius={[2, 2, 0, 0]} barSize={32}>
+                  {combinedChartData.map((entry, index) => (
+                    <Cell key={`cell-ongoing-${index}`} fill={entry.type === 'MAINT' ? '#ec4899' : '#451a03'} />
+                  ))}
+                </Bar>
+                <Bar dataKey="pending" radius={[2, 2, 0, 0]} barSize={32}>
+                  {combinedChartData.map((entry, index) => (
+                    <Cell key={`cell-pending-${index}`} fill={entry.type === 'MAINT' ? '#8b5cf6' : '#78350f'} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
