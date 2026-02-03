@@ -405,7 +405,7 @@ export const ClusterDirectorBulk: React.FC<{
   const [expandedSubblocks, setExpandedSubblocks] = useState<Set<string>>(new Set());
 
 
-  // Generate 30 blocks, 8 subblocks, 16 nodes
+  // Generate 30 blocks, 8 subblocks, 18 nodes
   const initialBlocks = useMemo(() => {
     const blocks = [];
     for (let i = 1; i <= 30; i++) {
@@ -414,7 +414,7 @@ export const ClusterDirectorBulk: React.FC<{
         subblocks.push({
           id: `sb-${i}-b-${j}`,
           label: `B${i}-sb${j}`,
-          nodes: Array(16).fill(0)
+          nodes: Array(18).fill(0)
         });
       }
       blocks.push({
@@ -454,7 +454,7 @@ export const ClusterDirectorBulk: React.FC<{
   };
 
   const getNodeColor = (blockIdx: number, sbIdx: number, nodeIdx: number, mode: ViewMode) => {
-    const key = (blockIdx * 128) + (sbIdx * 16) + nodeIdx;
+    const key = (blockIdx * 144) + (sbIdx * 18) + nodeIdx;
     const isGolden = blockIdx % 5 === 0;
 
     if (mode === 'HEALTH') {
@@ -516,7 +516,7 @@ export const ClusterDirectorBulk: React.FC<{
 
         sb.nodes.forEach((_, nIdx) => {
           totalNodes++;
-          const key = (bIdx * 128) + (sbIdx * 16) + nIdx;
+          const key = (bIdx * 144) + (sbIdx * 18) + nIdx;
           const isGolden = bIdx % 5 === 0;
           const isPendingRepair = !isGolden && (key % 13 === 5);
           const isInRepair = !isGolden && (key % 13 === 8);
@@ -551,8 +551,8 @@ export const ClusterDirectorBulk: React.FC<{
           }
         });
 
-        if (sbHealthyNodes === 16) healthySubblocks++;
-        else if (sbHealthyNodes >= 14) {
+        if (sbHealthyNodes === 18) healthySubblocks++;
+        else if (sbHealthyNodes >= 16) {
           schedulableSubblocks++;
           degradedSubblocksInBlock++;
         }
@@ -579,7 +579,7 @@ export const ClusterDirectorBulk: React.FC<{
         ...block,
         unhealthySubblocksCount: unhealthySubblocksInBlock,
         degradedSubblocksCount: degradedSubblocksInBlock,
-        unhealthyCount: (8 * 16) - blockHealthyNodes,
+        unhealthyCount: (8 * 18) - blockHealthyNodes,
         isHealthy: isBlockHealthy,
         status: blockStatus
       };
@@ -678,13 +678,13 @@ export const ClusterDirectorBulk: React.FC<{
                 <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.unhealthySubblocks / 240) * 100}%` }} />
               </div>
               <div className="flex justify-between text-[11px] font-bold">
-                <HealthTooltip align="left" content="A subblock is Healthy if 16 out of 16 machines are healthy.">
+                <HealthTooltip align="left" content="A subblock is Healthy if 18 out of 18 machines are healthy.">
                   <div className="flex items-center gap-2 text-cyan-600 cursor-help"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Healthy: {reconciledMetrics.healthySubblocks}</div>
                 </HealthTooltip>
-                <HealthTooltip content="A subblock is Schedulable if 14 or 15 machines are healthy. Viable for most workloads.">
+                <HealthTooltip content="A subblock is Schedulable if 16 or 17 machines are healthy. Viable for most workloads.">
                   <div className="flex items-center gap-2 text-amber-600 cursor-help"><div className="w-2 h-2 rounded-full bg-amber-500" /> Schedulable: {reconciledMetrics.schedulableSubblocks}</div>
                 </HealthTooltip>
-                <HealthTooltip align="right" content="A subblock is Unhealthy if fewer than 14 machines are healthy. Critical failure state.">
+                <HealthTooltip align="right" content="A subblock is Unhealthy if fewer than 16 machines are healthy. Critical failure state.">
                   <div className="flex items-center gap-2 text-rose-600 cursor-help">Unhealthy: {reconciledMetrics.unhealthySubblocks} <div className="w-2 h-2 rounded-full bg-rose-500" /></div>
                 </HealthTooltip>
               </div>
@@ -1054,11 +1054,11 @@ export const ClusterDirectorBulk: React.FC<{
                                       )}
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-8 gap-1">
+                                  <div className="grid grid-cols-9 gap-1">
                                     {sb.nodes.map((_, nIdx) => {
                                       const healthColor = getNodeColor(block.originalIndex, sbIdx, nIdx, 'HEALTH');
                                       const maintColor = getNodeColor(block.originalIndex, sbIdx, nIdx, 'MAINTENANCE');
-                                      const key = (block.originalIndex * 128) + (sbIdx * 16) + nIdx;
+                                      const key = (block.originalIndex * 144) + (sbIdx * 18) + nIdx;
                                       const isGolden = block.originalIndex % 5 === 0;
                                       const isPendingRepair = !isGolden && (key % 13 === 5);
                                       const isInRepair = !isGolden && (key % 13 === 8);
