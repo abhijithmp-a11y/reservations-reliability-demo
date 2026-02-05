@@ -45,6 +45,7 @@ import { ClusterTopology, REGIONS } from '@/components/ClusterTopology';
 import { ClusterDirectorV2 } from '@/components/ClusterDirectorV2';
 import { ClusterDirectorBulk } from '@/components/ClusterDirectorBulk';
 import { ProjectTopology } from '@/components/ProjectTopology';
+import { ReservationsList } from '@/components/ReservationsList';
 import { ScenarioGuide, SCENARIOS } from '@/components/ScenarioGuide';
 import { Job, JobStatus, GoodputType, DashboardFilters } from '@/types';
 import { FilterBar } from '@/components/FilterBar';
@@ -692,6 +693,12 @@ export default function App() {
         list.push({ id: 'chimera', label: 'chimera', onClick: undefined });
 
         // Group & Tab
+        if (activeTab === 'reservations') {
+            list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
+            list.push({ id: 'reservations', label: 'Reservations', active: true });
+            return list;
+        }
+
         if (activeTab === 'overview') {
             list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
             list.push({ id: 'overview', label: 'Overview', active: true });
@@ -700,13 +707,15 @@ export default function App() {
 
         if (activeTab === 'director') {
             list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
-            list.push({ id: 'director', label: 'Reservation details', active: true });
+            list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
+            list.push({ id: 'director', label: 'us-west8-reservation1', active: true });
             return list;
         }
 
         if (activeTab === 'director-bulk') {
             list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
-            list.push({ id: 'director-bulk', label: 'Reservation details (extended)', active: true });
+            list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
+            list.push({ id: 'director-bulk', label: 'us-central1-reservation2', active: true });
             return list;
         }
 
@@ -1174,39 +1183,28 @@ export default function App() {
               </div>
               
               <nav className="space-y-3">
-                 {/* Overview Standalone */}
-                 <button 
-                    onClick={() => handleTabChange('overview')}
+                  {/* Overview Standalone */}
+                  <button 
+                     onClick={() => handleTabChange('overview')}
+                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors border-l-2 ${
+                       activeTab === 'overview' 
+                         ? 'bg-[#1967D2]/10 text-[#1967D2] border-[#1967D2]' 
+                         : 'text-slate-600 hover:bg-slate-50 border-transparent hover:border-slate-300'
+                     }`}
+                   >
+                     <span>Overview</span>
+                   </button>
+
+                  <button 
+                    onClick={() => handleTabChange('reservations')}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors border-l-2 ${
-                      activeTab === 'overview' 
+                      activeTab === 'reservations' 
                         ? 'bg-[#1967D2]/10 text-[#1967D2] border-[#1967D2]' 
                         : 'text-slate-600 hover:bg-slate-50 border-transparent hover:border-slate-300'
                     }`}
                   >
-                    <span>Overview</span>
+                    <span>Reservations</span>
                   </button>
-
-                  <button 
-                     onClick={() => handleTabChange('director')}
-                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors border-l-2 ${
-                       activeTab === 'director' 
-                         ? 'bg-[#1967D2]/10 text-[#1967D2] border-[#1967D2]' 
-                         : 'text-slate-600 hover:bg-slate-50 border-transparent hover:border-slate-300'
-                     }`}
-                   >
-                     <span>Reservation details</span>
-                   </button>
-
-                   <button 
-                     onClick={() => handleTabChange('director-bulk')}
-                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors border-l-2 ${
-                       activeTab === 'director-bulk' 
-                         ? 'bg-[#1967D2]/10 text-[#1967D2] border-[#1967D2]' 
-                         : 'text-slate-600 hover:bg-slate-50 border-transparent hover:border-slate-300'
-                     }`}
-                   >
-                     <span>Reservation details (bulk)</span>
-                   </button>
 
                 {NAV_GROUPS.map(group => (
                   <div key={group.id}>
@@ -1244,6 +1242,10 @@ export default function App() {
         {/* MAIN CONTENT AREA */}
         <main className="flex-1 overflow-y-auto bg-slate-50 p-4 scroll-smooth">
           <div className="max-w-7xl">
+            {activeTab === 'reservations' && (
+              <ReservationsList onNavigate={(tabId) => handleTabChange(tabId)} />
+            )}
+
             {activeTab === 'overview' && renderOverviewContent()}
             
             {activeTab === 'jobs' && renderActiveJobsContent()}
