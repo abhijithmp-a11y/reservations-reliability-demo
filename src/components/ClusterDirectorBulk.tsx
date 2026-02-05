@@ -405,6 +405,7 @@ export const ClusterDirectorBulk: React.FC<{
   const [configOpen, setConfigOpen] = useState(false);
   const [blockFilter, setBlockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [subblockFilter, setSubblockFilter] = useState<'ALL' | 'HEALTHY' | 'SCHEDULABLE' | 'UNHEALTHY'>('ALL');
+  const [capacityFilter, setCapacityFilter] = useState<'ALL' | 'DIRECTOR' | 'GKE' | 'IDLE'>('ALL');
   const [topologyFilter, setTopologyFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [topologySort, setTopologySort] = useState<'MOST_UNHEALTHY' | 'LEAST_UNHEALTHY'>('MOST_UNHEALTHY');
   const [expandedSubblocks, setExpandedSubblocks] = useState<Set<string>>(new Set());
@@ -456,6 +457,14 @@ export const ClusterDirectorBulk: React.FC<{
   const handleTabChange = (mode: ViewMode) => {
     setViewMode(mode);
     setSelectedNode(null);
+    if (mode !== 'CAPACITY') setCapacityFilter('ALL');
+  };
+
+  const getSubblockCluster = (blockIdx: number, sbIdx: number) => {
+    const key = blockIdx * 8 + sbIdx;
+    if (key % 3 === 0) return { name: 'Cluster-Director-Bulk-01', type: 'DIRECTOR' };
+    if (key % 3 === 1) return { name: 'GKE-Data-Lake-02', type: 'GKE' };
+    return { name: 'Idle / Reserve', type: 'IDLE' };
   };
 
   const getNodeColor = (blockIdx: number, sbIdx: number, nodeIdx: number, mode: ViewMode) => {
@@ -621,6 +630,13 @@ export const ClusterDirectorBulk: React.FC<{
       result = result.filter(block => block.status !== 'HEALTHY');
     }
 
+    // Apply Capacity Filter
+    if (capacityFilter !== 'ALL') {
+      result = result.filter(block => {
+        return block.subblocks.some((_, sbIdx) => getSubblockCluster(block.originalIndex, sbIdx).type === capacityFilter);
+      });
+    }
+
     // Apply Topology Sort
     if (topologySort === 'LEAST_UNHEALTHY') {
       result.reverse();
@@ -771,24 +787,65 @@ export const ClusterDirectorBulk: React.FC<{
       }
 
       case 'CAPACITY': {
+        const allocatedDelivered = Math.round(reconciledMetrics.totalNodes * 0.95);
+        const directorConsumed = Math.round(reconciledMetrics.totalNodes * 0.4);
+        const gkeConsumed = Math.round(reconciledMetrics.totalNodes * 0.44);
+        const idleConsumed = allocatedDelivered - (directorConsumed + gkeConsumed);
+
         const capacityData = [
           {
             name: 'Reserved',
-            value: reconciledMetrics.totalNodes,
+            delivered: reconciledMetrics.totalNodes,
+            pending: 0,
             full: reconciledMetrics.totalNodes,
           },
           {
             name: 'Allocated',
-            value: Math.round(reconciledMetrics.totalNodes * 0.95),
+            delivered: allocatedDelivered,
+            pending: Math.round(reconciledMetrics.totalNodes * 0.05),
             full: reconciledMetrics.totalNodes,
           },
           {
             name: 'Consumed',
-            director: Math.round(reconciledMetrics.totalNodes * 0.4),
-            gke: Math.round(reconciledMetrics.totalNodes * 0.44),
+            director: directorConsumed,
+            gke: gkeConsumed,
+            idle: idleConsumed,
             full: reconciledMetrics.totalNodes,
           }
         ];
+
+        const CustomCapacityTooltip = ({ active, payload, label }: any) => {
+          if (active && payload && payload.length) {
+            return (
+              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
+                  {label}
+                </div>
+                <div className="space-y-1.5 mt-2">
+                  {payload.map((p: any, index: number) => {
+                    if (!p.value || p.value === 0) return null;
+                    const isPending = p.dataKey === 'pending';
+                    return (
+                      <div key={index} className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                          <span className="font-bold">{isPending ? 'Pending Qualification' : p.name}:</span>
+                          <span>{p.value} units</span>
+                        </div>
+                        {isPending && (
+                          <div className="text-amber-400 pl-3.5 font-medium italic">
+                            Expected delivery: Feb 12, 2026
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        };
 
         return (
           <div className="p-6 space-y-8">
@@ -799,7 +856,7 @@ export const ClusterDirectorBulk: React.FC<{
                     <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Capacity Lifecycle</h4>
                     <p className="text-xs text-slate-500">Reserved vs Allocated vs Consumed</p>
                   </div>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 justify-end max-w-[60%]">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                       <div className="w-2 h-2 rounded-full bg-blue-500" /> Reserved
                     </div>
@@ -807,10 +864,16 @@ export const ClusterDirectorBulk: React.FC<{
                       <div className="w-2 h-2 rounded-full bg-cyan-400" /> Allocated
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-slate-300" /> Pending Qualification
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                       <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Director)
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" /> Consumed (GKE)
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-amber-400" /> Idle
                     </div>
                   </div>
                 </div>
@@ -836,15 +899,45 @@ export const ClusterDirectorBulk: React.FC<{
                       />
                       <Tooltip 
                         cursor={{ fill: 'transparent' }}
-                        contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        content={<CustomCapacityTooltip />}
                       />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      <Bar dataKey="delivered" name="Delivered" stackId="cap" radius={[0, 0, 0, 0]}>
                         {capacityData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.name === 'Reserved' ? '#3b82f6' : '#22d3ee'} />
+                          <Cell key={`cell-del-${index}`} fill={entry.name === 'Reserved' ? '#3b82f6' : entry.name === 'Allocated' ? '#22d3ee' : 'transparent'} />
                         ))}
                       </Bar>
-                      <Bar dataKey="director" stackId="consumed" fill="#6366f1" radius={[0, 0, 0, 0]} />
-                      <Bar dataKey="gke" stackId="consumed" fill="#10b981" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="pending" name="Pending Qualification" stackId="cap" radius={[0, 4, 4, 0]}>
+                        {capacityData.map((entry, index) => (
+                          <Cell key={`cell-pen-${index}`} fill={entry.name === 'Allocated' ? '#cbd5e1' : 'transparent'} />
+                        ))}
+                      </Bar>
+                      <Bar 
+                        dataKey="director" 
+                        name="Director" 
+                        stackId="cap" 
+                        fill="#6366f1" 
+                        radius={[0, 0, 0, 0]} 
+                        onClick={() => setCapacityFilter(capacityFilter === 'DIRECTOR' ? 'ALL' : 'DIRECTOR')}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      />
+                      <Bar 
+                        dataKey="gke" 
+                        name="GKE" 
+                        stackId="cap" 
+                        fill="#10b981" 
+                        radius={[0, 0, 0, 0]} 
+                        onClick={() => setCapacityFilter(capacityFilter === 'GKE' ? 'ALL' : 'GKE')}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      />
+                      <Bar 
+                        dataKey="idle" 
+                        name="Idle" 
+                        stackId="cap" 
+                        fill="#fbbf24" 
+                        radius={[0, 4, 4, 0]} 
+                        onClick={() => setCapacityFilter(capacityFilter === 'IDLE' ? 'ALL' : 'IDLE')}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -922,7 +1015,9 @@ export const ClusterDirectorBulk: React.FC<{
           <div className="md:pl-8 pt-6 md:pt-0">
             <h4 className="text-sm font-medium text-slate-800 mb-1">Unused capacity</h4>
             <div className="text-lg font-bold text-slate-900 mb-1">{reconciledMetrics.emptyNodes} / {reconciledMetrics.totalNodes} instances</div>
-            <p className="text-xs text-slate-500">{Math.round((reconciledMetrics.emptyNodes / reconciledMetrics.totalNodes) * 100)}% not in use.</p>
+            <p className="text-xs text-slate-500">
+              {Math.round((reconciledMetrics.emptyNodes / reconciledMetrics.totalNodes) * 100)}% not in use. <button onClick={() => handleTabChange('CAPACITY')} className="text-[#1a73e8] hover:underline inline-flex items-center gap-0.5">View details <ExternalLink size={10} /></button>
+            </p>
           </div>
           <div className="md:pl-8 pt-6 md:pt-0">
             <div className="flex items-center gap-1.5 mb-1"><h4 className="text-sm font-medium text-slate-800">Maintenance and Repairs</h4><HelpCircle size={14} className="text-slate-400 cursor-help" /></div>
@@ -1124,6 +1219,28 @@ export const ClusterDirectorBulk: React.FC<{
                 </div>
                 Empty (No VM)
               </div>
+
+              {capacityFilter !== 'ALL' && (
+                <>
+                  <div className="h-4 w-px bg-slate-200 mx-1" />
+                  <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-md animate-pulse">
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Filtering by capacity:</span>
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase ${
+                      capacityFilter === 'DIRECTOR' ? 'bg-indigo-500 text-white' :
+                      capacityFilter === 'GKE' ? 'bg-emerald-500 text-white' :
+                      'bg-amber-500 text-white'
+                    }`}>
+                      {capacityFilter}
+                    </span>
+                    <button 
+                      onClick={() => setCapacityFilter('ALL')}
+                      className="text-blue-400 hover:text-blue-600 transition-colors ml-1"
+                    >
+                      <RefreshCw size={10} />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
             <div className="p-6"><div className="grid grid-cols-1 gap-8">
               {filteredBlocks.map((block, bIdx) => {
@@ -1157,13 +1274,25 @@ export const ClusterDirectorBulk: React.FC<{
                             const mAvailable = blockMaint.filter(c => c === COLORS.maintenance.available).length;
                             const mInProgress = blockMaint.filter(c => c === COLORS.maintenance.inprogress).length;
 
+                            const clusterInfo = getSubblockCluster(block.originalIndex, sbIdx);
+                            if (capacityFilter !== 'ALL' && clusterInfo.type !== capacityFilter) return null;
+
                             return (
                               <React.Fragment key={sb.id}>
                                 <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                                   <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-1.5">
-                                      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subblock</h5>
-                                      <span className="text-[9px] font-mono text-slate-400">{sb.label}</span>
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subblock</h5>
+                                        <span className="text-[9px] font-mono text-slate-400">{sb.label}</span>
+                                      </div>
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border w-fit ${
+                                        clusterInfo.type === 'DIRECTOR' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                        clusterInfo.type === 'GKE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                        'bg-amber-50 text-amber-700 border-amber-100'
+                                      }`}>
+                                        {clusterInfo.name}
+                                      </span>
                                     </div>
                                     <div className="flex gap-2 text-[9px] font-bold">
                                       {viewMode === 'MAINTENANCE' ? (
