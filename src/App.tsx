@@ -42,6 +42,7 @@ import { Card, StatCard, DonutChart, Sparkline, TableHeader } from '@/components
 import { DiagnosticsPanel } from '@/components/DiagnosticsPanel';
 import { DiagnosticsRuns } from '@/components/DiagnosticsRuns';
 import { ClusterTopology, REGIONS } from '@/components/ClusterTopology';
+import { ClusterTable } from '@/components/ClusterTable';
 import { ClusterDirectorV2 } from '@/components/ClusterDirectorV2';
 import { ClusterDirectorBulk } from '@/components/ClusterDirectorBulk';
 import { ProjectTopology } from '@/components/ProjectTopology';
@@ -527,6 +528,14 @@ const RainbowBanner: React.FC = () => {
 // Navigation Structure
 const NAV_GROUPS = [
   {
+    title: 'Clusters',
+    id: 'clusters',
+    items: [
+      { label: 'Cluster Director', id: 'cluster-director' },
+      { label: 'GKE', id: 'gke' }
+    ]
+  },
+  {
     title: 'Jobs and Diagnostics',
     id: 'tools',
     items: [
@@ -541,6 +550,7 @@ export default function App() {
   // View state controls sub-views within tabs (e.g. List vs Detail)
   const [view, setView] = useState<'dashboard' | 'diagnostics' | 'diagnostics-list' | 'cluster-detail' | 'reservation-detail' | 'fleet-detail' | 'reservation-bulk'>('dashboard');
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    'clusters': true,
     'tools': true,
     'solutions': true
   });
@@ -716,6 +726,18 @@ export default function App() {
             list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
             list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
             list.push({ id: 'director-bulk', label: 'us-central1-reservation2', active: true });
+            return list;
+        }
+
+        if (activeTab === 'cluster-director') {
+            list.push({ id: 'grp-clusters', label: 'Clusters', onClick: undefined });
+            list.push({ id: 'cluster-director', label: 'Cluster Director', active: true });
+            return list;
+        }
+
+        if (activeTab === 'gke') {
+            list.push({ id: 'grp-clusters', label: 'Clusters', onClick: undefined });
+            list.push({ id: 'gke', label: 'GKE', active: true });
             return list;
         }
 
@@ -1061,6 +1083,35 @@ export default function App() {
     return null;
   };
 
+  // 4. CLUSTERS CONTENT
+  const renderClustersContent = () => {
+    if (activeTab === 'cluster-director') {
+      return (
+        <div className="space-y-4 animate-fadeIn">
+          <h1 className="text-xl font-bold text-slate-900">Cluster Director</h1>
+          <ClusterTable 
+            filterOrchestrator="Director"
+            onClusterClick={handleClusterClick}
+            onViewTopology={handleClusterClick}
+          />
+        </div>
+      );
+    }
+    if (activeTab === 'gke') {
+      return (
+        <div className="space-y-4 animate-fadeIn">
+          <h1 className="text-xl font-bold text-slate-900">GKE Clusters</h1>
+          <ClusterTable 
+            filterOrchestrator="GKE"
+            onClusterClick={handleClusterClick}
+            onViewTopology={handleClusterClick}
+          />
+        </div>
+      );
+    }
+    return null;
+  };
+
   // ... (Header and layout logic remains the same)
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col">
@@ -1248,6 +1299,8 @@ export default function App() {
 
             {activeTab === 'overview' && renderOverviewContent()}
             
+            {(activeTab === 'cluster-director' || activeTab === 'gke') && renderClustersContent()}
+
             {activeTab === 'jobs' && renderActiveJobsContent()}
             
             {activeTab === 'diagnostics' && renderJobsContent()}

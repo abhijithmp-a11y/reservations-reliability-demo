@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Server, Activity, Cpu, AlertTriangle, CheckCircle2, Zap, Thermometer, Box, ChevronUp, ExternalLink } from 'lucide-react';
 import { Job, JobStatus } from '../types';
 
@@ -48,6 +48,7 @@ export const REGIONS = [
 interface ClusterTopologyProps {
   onClusterClick?: (clusterId: string) => void;
   jobs?: Job[];
+  filterOrchestrator?: string;
 }
 
 const TopologyLegend = () => (
@@ -63,8 +64,17 @@ const TopologyLegend = () => (
   </div>
 );
 
-export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick, jobs = [] }) => {
+export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick, jobs = [], filterOrchestrator }) => {
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null);
+
+  const filteredRegions = useMemo(() => {
+    if (!filterOrchestrator) return REGIONS;
+    
+    return REGIONS.map(region => ({
+      ...region,
+      clusters: region.clusters.filter(c => c.orchestrator === filterOrchestrator)
+    })).filter(region => region.clusters.length > 0);
+  }, [filterOrchestrator]);
 
   const toggleExpand = (id: string) => {
     setExpandedClusterId(prev => prev === id ? null : id);
@@ -176,7 +186,7 @@ export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick
     <div className="relative p-2 overflow-x-auto">
       {/* Regions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-        {REGIONS.map((region, idx) => (
+        {filteredRegions.map((region, idx) => (
           <div key={region.id} className="relative flex flex-col items-center">
              
              {/* Region Node */}

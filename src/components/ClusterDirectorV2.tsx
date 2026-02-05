@@ -38,7 +38,7 @@ import {
 
 // --- TYPES & CONSTANTS ---
 
-type ViewMode = 'HEALTH' | 'UTILIZATION' | 'MAINTENANCE';
+type ViewMode = 'HEALTH' | 'UTILIZATION' | 'MAINTENANCE' | 'CAPACITY';
 
 const COLORS = {
   health: {
@@ -464,6 +464,11 @@ export const UnifiedNodeDetail: React.FC<{
     { id: 'TR-879', name: 'Thermal Throttling Check', status: healthStatus === 'degraded' ? 'WARN' : 'PASS', date: 'Yesterday' },
   ];
 
+  const terminationReasons = ["User reported fault", "Hosterror", "Repair", "Planned maintenance"];
+  const terminationReason = healthStatus === 'unhealthy' 
+    ? terminationReasons[nodeIdx % terminationReasons.length] 
+    : "Preemption (Priority)";
+
   return (
     <div className="col-span-full mt-4 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden animate-fadeIn">
       {!hasVM && (maintStatus === 'pending' || maintStatus === 'inprogress') && (
@@ -569,7 +574,7 @@ export const UnifiedNodeDetail: React.FC<{
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="text-[9px] text-slate-400 uppercase font-bold">Reason</div>
-                    <div className="text-[10px] font-bold text-slate-700">Preemption (Priority)</div>
+                    <div className="text-[10px] font-bold text-slate-700">{terminationReason}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[9px] text-slate-400 uppercase font-bold">Time</div>
@@ -1280,6 +1285,122 @@ export const ClusterDirectorV2: React.FC<{
             </div>
           </div>
         );
+
+      case 'CAPACITY':
+        const capacityData = [
+          {
+            name: 'Reserved',
+            value: reconciledMetrics.totalNodes,
+            full: reconciledMetrics.totalNodes,
+          },
+          {
+            name: 'Allocated',
+            value: Math.round(reconciledMetrics.totalNodes * 0.95),
+            full: reconciledMetrics.totalNodes,
+          },
+          {
+            name: 'Consumed',
+            director: Math.round(reconciledMetrics.totalNodes * 0.4),
+            gke: Math.round(reconciledMetrics.totalNodes * 0.44),
+            full: reconciledMetrics.totalNodes,
+          }
+        ];
+
+        return (
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-slate-50/50 rounded-xl border border-slate-100 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Capacity Lifecycle</h4>
+                    <p className="text-xs text-slate-500">Reserved vs Allocated vs Consumed</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" /> Reserved
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-cyan-400" /> Allocated
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Director)
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" /> Consumed (GKE)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={capacityData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                      barSize={32}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                      <XAxis type="number" hide domain={[0, reconciledMetrics.totalNodes]} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false}
+                        fontSize={11}
+                        fontWeight="bold"
+                        tick={{ fill: '#475569' }}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                        {capacityData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.name === 'Reserved' ? '#3b82f6' : '#22d3ee'} />
+                        ))}
+                      </Bar>
+                      <Bar dataKey="director" stackId="consumed" fill="#6366f1" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="gke" stackId="consumed" fill="#10b981" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Capacity Efficiency</h5>
+                  <div className="flex items-end gap-2 mb-1">
+                    <span className="text-2xl font-black text-slate-900">88.4%</span>
+                    <span className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-0.5">
+                      <TrendingUp size={12} /> +2.1%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500">Allocated to Consumed ratio</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Consumption Split</h5>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium text-slate-600">Cluster Director</span>
+                      <span className="text-xs font-bold text-slate-900">47.6%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-indigo-500 h-full" style={{ width: '47.6%' }} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium text-slate-600">GKE</span>
+                      <span className="text-xs font-bold text-slate-900 text-right">52.4%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full" style={{ width: '52.4%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
     }
   };
 
@@ -1371,7 +1492,7 @@ export const ClusterDirectorV2: React.FC<{
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                <div className="px-6 pt-4 border-b border-slate-100 bg-slate-50/30">
                   <div className="flex items-center gap-6">
-                    {(['HEALTH', 'MAINTENANCE'] as const).map((mode) => (
+                    {(['HEALTH', 'MAINTENANCE', 'CAPACITY'] as const).map((mode) => (
                       <button
                         key={mode}
                         onClick={() => handleTabChange(mode)}

@@ -38,7 +38,7 @@ import {
 
 // --- TYPES & CONSTANTS ---
 
-type ViewMode = 'HEALTH' | 'MAINTENANCE';
+type ViewMode = 'HEALTH' | 'MAINTENANCE' | 'CAPACITY';
 
 const COLORS = {
   health: {
@@ -132,6 +132,11 @@ export const UnifiedNodeDetail: React.FC<{
     { id: 'TR-881', name: 'NVLink P2P Latency', status: healthStatus === 'unhealthy' ? 'FAIL' : 'PASS', date: '4h ago' },
     { id: 'TR-879', name: 'Thermal Throttling Check', status: healthStatus === 'degraded' ? 'WARN' : 'PASS', date: 'Yesterday' },
   ];
+
+  const terminationReasons = ["User reported fault", "Hosterror", "Repair", "Planned maintenance"];
+  const terminationReason = healthStatus === 'unhealthy' 
+    ? terminationReasons[nodeIdx % terminationReasons.length] 
+    : "Preemption (Priority)";
 
   return (
     <div className="col-span-full mt-4 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden animate-fadeIn">
@@ -238,7 +243,7 @@ export const UnifiedNodeDetail: React.FC<{
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold">Reason</div>
-                      <div className="text-[10px] font-bold text-slate-700">Preemption (Priority)</div>
+                      <div className="text-[10px] font-bold text-slate-700">{terminationReason}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-[9px] text-slate-400 uppercase font-bold">Time</div>
@@ -625,143 +630,265 @@ export const ClusterDirectorBulk: React.FC<{
   }, [reconciledMetrics.sortedBlocks, topologyFilter, topologySort]);
 
   const renderDashboardCard = () => {
-    if (viewMode === 'HEALTH') {
-      return (
-        <div className="p-6 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="space-y-4">
-              <div className="flex justify-between items-end">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Blocks</h4>
-                  <div className="flex items-center bg-slate-100 rounded-md p-0.5 mt-1">
-                    {(['ALL', 'HEALTHY', 'UNHEALTHY'] as const).map((f) => (
-                      <button key={f} onClick={() => setBlockFilter(f)} className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${blockFilter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{f}</button>
-                    ))}
+    switch (viewMode) {
+      case 'HEALTH':
+        return (
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="space-y-4">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Blocks</h4>
+                    <div className="flex items-center bg-slate-100 rounded-md p-0.5 mt-1">
+                      {(['ALL', 'HEALTHY', 'UNHEALTHY'] as const).map((f) => (
+                        <button key={f} onClick={() => setBlockFilter(f)} className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${blockFilter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{f}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-black text-slate-900">{reconciledMetrics.healthyBlocks + reconciledMetrics.unhealthyBlocks}</span>
+                    <span className="text-[10px] text-slate-400 ml-1 uppercase font-bold tracking-tighter">Total Blocks</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-slate-900">{reconciledMetrics.healthyBlocks + reconciledMetrics.unhealthyBlocks}</span>
-                  <span className="text-[10px] text-slate-400 ml-1 uppercase font-bold tracking-tighter">Total Blocks</span>
+                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-cyan-400 transition-all duration-500" style={{ width: `${(reconciledMetrics.healthyBlocks / 30) * 100}%` }} />
+                  <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.unhealthyBlocks / 30) * 100}%` }} />
+                </div>
+                <div className="flex justify-between text-[11px] font-bold">
+                  <HealthTooltip align="left" content="A block is Healthy if all its subblocks are fully healthy.">
+                    <div className="flex items-center gap-2 text-cyan-600 cursor-help"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Healthy: {reconciledMetrics.healthyBlocks}</div>
+                  </HealthTooltip>
+                  <HealthTooltip align="right" content="A block is Unhealthy if it contains at least one subblock that is Schedulable or Unhealthy.">
+                    <div className="flex items-center gap-2 text-rose-600 cursor-help">Unhealthy: {reconciledMetrics.unhealthyBlocks} <div className="w-2 h-2 rounded-full bg-rose-500" /></div>
+                  </HealthTooltip>
                 </div>
               </div>
-              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                <div className="h-full bg-cyan-400 transition-all duration-500" style={{ width: `${(reconciledMetrics.healthyBlocks / 30) * 100}%` }} />
-                <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.unhealthyBlocks / 30) * 100}%` }} />
-              </div>
-              <div className="flex justify-between text-[11px] font-bold">
-                <HealthTooltip align="left" content="A block is Healthy if all its subblocks are fully healthy.">
-                  <div className="flex items-center gap-2 text-cyan-600 cursor-help"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Healthy: {reconciledMetrics.healthyBlocks}</div>
-                </HealthTooltip>
-                <HealthTooltip align="right" content="A block is Unhealthy if it contains at least one subblock that is Schedulable or Unhealthy.">
-                  <div className="flex items-center gap-2 text-rose-600 cursor-help">Unhealthy: {reconciledMetrics.unhealthyBlocks} <div className="w-2 h-2 rounded-full bg-rose-500" /></div>
-                </HealthTooltip>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-end">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Subblocks</h4>
-                  <div className="flex items-center bg-slate-100 rounded-md p-0.5 mt-1">
-                    {(['ALL', 'HEALTHY', 'SCHEDULABLE', 'UNHEALTHY'] as const).map((f) => (
-                      <button key={f} onClick={() => setSubblockFilter(f)} className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${subblockFilter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{f}</button>
-                    ))}
+              <div className="space-y-4">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Subblocks</h4>
+                    <div className="flex items-center bg-slate-100 rounded-md p-0.5 mt-1">
+                      {(['ALL', 'HEALTHY', 'SCHEDULABLE', 'UNHEALTHY'] as const).map((f) => (
+                        <button key={f} onClick={() => setSubblockFilter(f)} className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${subblockFilter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{f}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-black text-slate-900">240</span>
+                    <span className="text-[10px] text-slate-400 ml-1 uppercase font-bold tracking-tighter">Total Subblocks</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-slate-900">240</span>
-                  <span className="text-[10px] text-slate-400 ml-1 uppercase font-bold tracking-tighter">Total Subblocks</span>
+                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-cyan-400 transition-all duration-500" style={{ width: `${(reconciledMetrics.healthySubblocks / 240) * 100}%` }} />
+                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.schedulableSubblocks / 240) * 100}%` }} />
+                  <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.unhealthySubblocks / 240) * 100}%` }} />
                 </div>
-              </div>
-              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                <div className="h-full bg-cyan-400 transition-all duration-500" style={{ width: `${(reconciledMetrics.healthySubblocks / 240) * 100}%` }} />
-                <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.schedulableSubblocks / 240) * 100}%` }} />
-                <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${(reconciledMetrics.unhealthySubblocks / 240) * 100}%` }} />
-              </div>
-              <div className="flex justify-between text-[11px] font-bold">
-                <HealthTooltip align="left" content="A subblock is Healthy if 18 out of 18 machines are healthy.">
-                  <div className="flex items-center gap-2 text-cyan-600 cursor-help"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Healthy: {reconciledMetrics.healthySubblocks}</div>
-                </HealthTooltip>
-                <HealthTooltip content="A subblock is Schedulable if 16 or 17 machines are healthy. Viable for most workloads.">
-                  <div className="flex items-center gap-2 text-amber-600 cursor-help"><div className="w-2 h-2 rounded-full bg-amber-500" /> Schedulable: {reconciledMetrics.schedulableSubblocks}</div>
-                </HealthTooltip>
-                <HealthTooltip align="right" content="A subblock is Unhealthy if fewer than 16 machines are healthy. Critical failure state.">
-                  <div className="flex items-center gap-2 text-rose-600 cursor-help">Unhealthy: {reconciledMetrics.unhealthySubblocks} <div className="w-2 h-2 rounded-full bg-rose-500" /></div>
-                </HealthTooltip>
+                <div className="flex justify-between text-[11px] font-bold">
+                  <HealthTooltip align="left" content="A subblock is Healthy if 18 out of 18 machines are healthy.">
+                    <div className="flex items-center gap-2 text-cyan-600 cursor-help"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Healthy: {reconciledMetrics.healthySubblocks}</div>
+                  </HealthTooltip>
+                  <HealthTooltip content="A subblock is Schedulable if 16 or 17 machines are healthy. Viable for most workloads.">
+                    <div className="flex items-center gap-2 text-amber-600 cursor-help"><div className="w-2 h-2 rounded-full bg-amber-500" /> Schedulable: {reconciledMetrics.schedulableSubblocks}</div>
+                  </HealthTooltip>
+                  <HealthTooltip align="right" content="A subblock is Unhealthy if fewer than 16 machines are healthy. Critical failure state.">
+                    <div className="flex items-center gap-2 text-rose-600 cursor-help">Unhealthy: {reconciledMetrics.unhealthySubblocks} <div className="w-2 h-2 rounded-full bg-rose-500" /></div>
+                  </HealthTooltip>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      );
+        );
+
+      case 'MAINTENANCE': {
+        const combinedChartData = [
+          { name: 'Blocks (M)', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending, type: 'MAINT' },
+          { name: 'Subblocks (M)', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending, type: 'MAINT' },
+          { name: 'VMs (M)', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount, type: 'MAINT' },
+          { name: 'Subblocks (R)', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending, type: 'REPAIR' },
+          { name: 'Machines (R)', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount, type: 'REPAIR' },
+        ];
+
+        return (
+          <div className="p-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-2">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fleet Events</h4>
+                  <p className="text-[10px] text-slate-500">Combined view of Maintenance (M) and Repairs (R)</p>
+                </div>
+                <div className="flex gap-4 text-[9px] font-bold">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-pink-600">
+                      <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Maint. Ongoing
+                    </div>
+                    <div className="flex items-center gap-1.5 text-violet-600">
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500" /> Maint. Pending
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-[#451a03]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#451a03]" /> Repair In-Progress
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[#78350f]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#78350f]" /> Repair Pending
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-40 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={combinedChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 9 }}
+                    />
+                    <Tooltip cursor={{ fill: '#f8fafc' }} />
+                    <Bar dataKey="ongoing" radius={[2, 2, 0, 0]} barSize={32}>
+                      {combinedChartData.map((entry, index) => (
+                        <Cell key={`cell-ongoing-${index}`} fill={entry.type === 'MAINT' ? '#ec4899' : '#451a03'} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="pending" radius={[2, 2, 0, 0]} barSize={32}>
+                      {combinedChartData.map((entry, index) => (
+                        <Cell key={`cell-pending-${index}`} fill={entry.type === 'MAINT' ? '#8b5cf6' : '#78350f'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case 'CAPACITY': {
+        const capacityData = [
+          {
+            name: 'Reserved',
+            value: reconciledMetrics.totalNodes,
+            full: reconciledMetrics.totalNodes,
+          },
+          {
+            name: 'Allocated',
+            value: Math.round(reconciledMetrics.totalNodes * 0.95),
+            full: reconciledMetrics.totalNodes,
+          },
+          {
+            name: 'Consumed',
+            director: Math.round(reconciledMetrics.totalNodes * 0.4),
+            gke: Math.round(reconciledMetrics.totalNodes * 0.44),
+            full: reconciledMetrics.totalNodes,
+          }
+        ];
+
+        return (
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-slate-50/50 rounded-xl border border-slate-100 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Capacity Lifecycle</h4>
+                    <p className="text-xs text-slate-500">Reserved vs Allocated vs Consumed</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" /> Reserved
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-cyan-400" /> Allocated
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Director)
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" /> Consumed (GKE)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={capacityData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                      barSize={32}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                      <XAxis type="number" hide domain={[0, reconciledMetrics.totalNodes]} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false}
+                        fontSize={11}
+                        fontWeight="bold"
+                        tick={{ fill: '#475569' }}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                        {capacityData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.name === 'Reserved' ? '#3b82f6' : '#22d3ee'} />
+                        ))}
+                      </Bar>
+                      <Bar dataKey="director" stackId="consumed" fill="#6366f1" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="gke" stackId="consumed" fill="#10b981" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Capacity Efficiency</h5>
+                  <div className="flex items-end gap-2 mb-1">
+                    <span className="text-2xl font-black text-slate-900">88.4%</span>
+                    <span className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-0.5">
+                      <TrendingUp size={12} /> +2.1%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500">Allocated to Consumed ratio</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Consumption Split</h5>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium text-slate-600">Cluster Director</span>
+                      <span className="text-xs font-bold text-slate-900">47.6%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-indigo-500 h-full" style={{ width: '47.6%' }} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium text-slate-600">GKE</span>
+                      <span className="text-xs font-bold text-slate-900 text-right">52.4%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full" style={{ width: '52.4%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      default:
+        return null;
     }
-
-    const combinedChartData = [
-      { name: 'Blocks (M)', ongoing: reconciledMetrics.maintBlocksInProgress, pending: reconciledMetrics.maintBlocksPending, type: 'MAINT' },
-      { name: 'Subblocks (M)', ongoing: reconciledMetrics.maintSubblocksInProgress, pending: reconciledMetrics.maintSubblocksPending, type: 'MAINT' },
-      { name: 'VMs (M)', ongoing: reconciledMetrics.maintInProgress, pending: reconciledMetrics.pendingMaintCount, type: 'MAINT' },
-      { name: 'Subblocks (R)', ongoing: reconciledMetrics.repairSubblocksInProgress, pending: reconciledMetrics.repairSubblocksPending, type: 'REPAIR' },
-      { name: 'Machines (R)', ongoing: reconciledMetrics.inRepairCount, pending: reconciledMetrics.pendingRepairCount, type: 'REPAIR' },
-    ];
-
-    return (
-      <div className="p-6">
-        <div className="space-y-4">
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fleet Events</h4>
-              <p className="text-[10px] text-slate-500">Combined view of Maintenance (M) and Repairs (R)</p>
-            </div>
-            <div className="flex gap-4 text-[9px] font-bold">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-pink-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Maint. Ongoing
-                </div>
-                <div className="flex items-center gap-1.5 text-violet-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-violet-500" /> Maint. Pending
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-[#451a03]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#451a03]" /> Repair In-Progress
-                </div>
-                <div className="flex items-center gap-1.5 text-[#78350f]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#78350f]" /> Repair Pending
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-40 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={combinedChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 9 }}
-                />
-                <Tooltip cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="ongoing" radius={[2, 2, 0, 0]} barSize={32}>
-                  {combinedChartData.map((entry, index) => (
-                    <Cell key={`cell-ongoing-${index}`} fill={entry.type === 'MAINT' ? '#ec4899' : '#451a03'} />
-                  ))}
-                </Bar>
-                <Bar dataKey="pending" radius={[2, 2, 0, 0]} barSize={32}>
-                  {combinedChartData.map((entry, index) => (
-                    <Cell key={`cell-pending-${index}`} fill={entry.type === 'MAINT' ? '#8b5cf6' : '#78350f'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -808,9 +935,9 @@ export const ClusterDirectorBulk: React.FC<{
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <div className="px-6 pt-4 border-b border-slate-100 bg-slate-50/30">
               <div className="flex items-center gap-6">
-                {(['HEALTH', 'MAINTENANCE'] as const).map((mode) => (
+                {(['HEALTH', 'MAINTENANCE', 'CAPACITY'] as const).map((mode) => (
                   <button key={mode} onClick={() => handleTabChange(mode)} className={`pb-3 text-xs font-bold transition-all relative ${viewMode === mode ? 'text-[#1967D2]' : 'text-slate-400 hover:text-slate-600'}`}>
-                    {mode === 'MAINTENANCE' ? 'Maintenance and repairs' : 'Health'}
+                    {mode === 'MAINTENANCE' ? 'Maintenance and repairs' : mode === 'CAPACITY' ? 'Capacity' : 'Health'}
                     {viewMode === mode && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1967D2] rounded-full" />}
                   </button>
                 ))}

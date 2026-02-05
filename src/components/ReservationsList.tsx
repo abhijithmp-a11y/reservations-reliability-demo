@@ -19,7 +19,7 @@ const RESERVATIONS: ReservationEntry[] = [
     location: 'us-west8-a',
     type: 'Standard',
     status: 'Ready',
-    assuredCount: 17,
+    assuredCount: 144,
     creationTime: 'Jan 7, 2026',
     tabId: 'director'
   },
@@ -29,7 +29,7 @@ const RESERVATIONS: ReservationEntry[] = [
     location: 'us-central1-a',
     type: 'Extended',
     status: 'Healthy',
-    assuredCount: 540,
+    assuredCount: 4320,
     creationTime: 'Jan 12, 2026',
     tabId: 'director-bulk'
   }
@@ -125,7 +125,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({ onNavigate }
             </div>
             <h3 className="font-bold text-slate-800">Total Capacity</h3>
           </div>
-          <div className="text-3xl font-bold text-slate-900">557</div>
+          <div className="text-3xl font-bold text-slate-900">4,464</div>
           <div className="text-xs text-slate-500 mt-1">Assured instances across all reservations</div>
         </div>
 
