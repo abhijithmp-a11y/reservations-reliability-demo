@@ -139,8 +139,11 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, showBanner, o
             </button>
             <div>
                <div className="flex items-center gap-2 mb-1">
-                  <h1 className="text-xl font-normal text-slate-900">{job.name}</h1>
+                  <h1 className="text-xl font-normal text-slate-900">{job.workloadName}</h1>
                   <div className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-mono text-slate-600">
+                    {job.jobsetId}
+                  </div>
+                  <div className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-[10px] font-mono text-slate-400">
                     {job.id}
                   </div>
                </div>

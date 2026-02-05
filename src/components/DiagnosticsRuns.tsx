@@ -15,101 +15,60 @@ import { Job, JobStatus } from '../types';
 // Mock Data specifically for the Runs table
 const MOCK_RUNS = [
   { 
-    id: 'run_234-jobset1-timestamp', 
+    id: 'run-af-sim-20241025', 
     status: 'Complete', 
-    jobName: 'jobset-1', 
+    workloadName: 'AlphaFold-Protein-Sim',
+    jobsetId: 'jobset-af-sim', 
     runGroup: 'hero-job', 
     monitoring: 'Slowdown detected', 
     sdk: true, 
     tpuUtil: 25, 
     throughput: '450 images/s',
-    jobRef: { status: JobStatus.RUNNING } as Job // Mock ref for navigation
+    jobRef: { status: JobStatus.RUNNING, id: 'job-zeta-789', workloadName: 'AlphaFold-Protein-Sim', jobsetId: 'jobset-af-sim' } as Job 
   },
   { 
-    id: 'run-name-2-jobset3-timestamp', 
+    id: 'run-gpt5-moe-iter4', 
     status: 'Complete', 
-    jobName: 'jobset-3', 
+    workloadName: 'GPT-5-MoE-Training',
+    jobsetId: 'jobset-gpt5-moe', 
     runGroup: 'tpu-slice-size-sweep', 
     monitoring: 'Hang detected', 
     sdk: false, 
     tpuUtil: 0, 
     throughput: '-',
-    jobRef: { status: JobStatus.HANGING } as Job
+    jobRef: { status: JobStatus.HANGING, id: 'job-hang-007', workloadName: 'GPT-5-MoE-Training', jobsetId: 'jobset-gpt5-moe' } as Job
   },
   { 
-    id: 'run-name-3-date', 
+    id: 'run-llama3-ft-01', 
     status: 'Complete', 
-    jobName: 'jobset-3', 
+    workloadName: 'LLAMA-3-70B-Finetune',
+    jobsetId: 'jobset-llama-3', 
     runGroup: 'tpu-slice-size-sweep', 
     monitoring: 'Running', 
     sdk: false, 
     tpuUtil: 40, 
     throughput: '-',
-    jobRef: { status: JobStatus.RUNNING } as Job
+    jobRef: { status: JobStatus.RUNNING, id: 'job-alpha-102', workloadName: 'LLAMA-3-70B-Finetune', jobsetId: 'jobset-llama-3' } as Job
   },
   { 
-    id: 'run-name-4-date1', 
+    id: 'run-resnet-v2-01', 
     status: 'Complete', 
-    jobName: 'jobset-4', 
+    workloadName: 'ResNet-50-Training',
+    jobsetId: 'jobset-resnet-50', 
     runGroup: 'tpu-slice-size-sweep', 
     monitoring: 'Running', 
     sdk: false, 
     tpuUtil: 40, 
     throughput: '-',
-    jobRef: { status: JobStatus.RUNNING } as Job
-  },
-  { 
-    id: 'run-name-4-date2', 
-    status: 'Failed', 
-    jobName: 'jobset-4', 
-    runGroup: 'tpu-slice-size-sweep', 
-    monitoring: 'Complete', 
-    sdk: false, 
-    tpuUtil: 40, 
-    throughput: '-',
-    jobRef: { status: JobStatus.FAILED } as Job
-  },
-  { 
-    id: 'run-name-5-date', 
-    status: 'Complete', 
-    jobName: 'jobset-4', 
-    runGroup: 'tpu-slice-size-sweep', 
-    monitoring: 'Complete', 
-    sdk: false, 
-    tpuUtil: 40, 
-    throughput: '-',
-    jobRef: { status: JobStatus.COMPLETED } as Job
-  },
-  { 
-    id: 'run-name-6-date', 
-    status: 'Active', 
-    jobName: 'jobset-4', 
-    runGroup: 'tpu-slice-size-sweep', 
-    monitoring: 'Complete', 
-    sdk: false, 
-    tpuUtil: 40, 
-    throughput: '-',
-    jobRef: { status: JobStatus.RUNNING } as Job
-  },
-  { 
-    id: 'run-name-7-date', 
-    status: 'Complete', 
-    jobName: 'jobset-4', 
-    runGroup: 'tpu-slice-size-sweep', 
-    monitoring: 'Complete', 
-    sdk: false, 
-    tpuUtil: 40, 
-    throughput: '-',
-    jobRef: { status: JobStatus.COMPLETED } as Job
+    jobRef: { status: JobStatus.RUNNING, id: 'job-beta-991', workloadName: 'ResNet-50-Training', jobsetId: 'jobset-resnet-50' } as Job
   },
 ];
 
 interface DiagnosticsRunsProps {
   onRunClick: (jobStub: Partial<Job>) => void;
-  onJobClick?: (jobName: string) => void;
 }
 
-export const DiagnosticsRuns: React.FC<DiagnosticsRunsProps> = ({ onRunClick, onJobClick }) => {
+export const DiagnosticsRuns: React.FC<DiagnosticsRunsProps> = ({ onRunClick }) => {
   const [activeView, setActiveView] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -207,8 +166,9 @@ export const DiagnosticsRuns: React.FC<DiagnosticsRunsProps> = ({ onRunClick, on
             <thead className="bg-slate-50 text-slate-500 font-medium text-[10px] border-b border-slate-200">
               <tr>
                 <th className="px-3 py-2 w-8">Status</th>
-                <TableHeader label="Name" tooltip="The unique run identifier" />
-                <TableHeader label="Job name" tooltip="Associated job name" />
+                <TableHeader label="Workload" tooltip="The descriptive workload name" />
+                <TableHeader label="Jobset ID" tooltip="Associated jobset identifier" />
+                <TableHeader label="Run ID" tooltip="The unique run identifier" />
                 <TableHeader label="Run group" tooltip="Grouping identifier for the run" />
                 <TableHeader label="Monitoring" tooltip="Current monitoring status from Diagon++" />
                 <TableHeader label="SDK instrumented" tooltip="Whether the Diagon SDK is active" />
@@ -217,28 +177,23 @@ export const DiagnosticsRuns: React.FC<DiagnosticsRunsProps> = ({ onRunClick, on
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {MOCK_RUNS.filter(r => r.id.toLowerCase().includes(searchTerm.toLowerCase())).map((run) => (
+              {MOCK_RUNS.filter(r => r.workloadName.toLowerCase().includes(searchTerm.toLowerCase()) || r.jobsetId.toLowerCase().includes(searchTerm.toLowerCase())).map((run) => (
                 <tr 
                   key={run.id} 
                   className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                  onClick={() => onRunClick({ ...run.jobRef, name: run.jobName, id: run.id } as Partial<Job>)}
+                  onClick={() => onRunClick({ ...run.jobRef } as Partial<Job>)}
                 >
                   <td className="px-3 py-2">
                     {renderStatusIcon(run.status)}
                   </td>
-                  <td className="px-4 py-2 font-medium text-[#1967D2] underline decoration-transparent group-hover:decoration-[#1967D2] transition-all">
-                    {run.id}
+                  <td className="px-4 py-2 font-bold text-slate-800">
+                    {run.workloadName}
                   </td>
-                  <td className="px-4 py-2">
-                    <button 
-                      className="text-[#1967D2] hover:underline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onJobClick?.(run.jobName);
-                      }}
-                    >
-                      {run.jobName}
-                    </button>
+                  <td className="px-4 py-2 text-slate-600 font-mono text-[11px]">
+                    {run.jobsetId}
+                  </td>
+                  <td className="px-4 py-2 text-slate-500 font-mono text-[10px]">
+                    {run.id}
                   </td>
                   <td className="px-4 py-2 text-slate-600">{run.runGroup}</td>
                   <td className="px-4 py-2 text-[11px]">

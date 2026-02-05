@@ -60,7 +60,8 @@ const MOCK_JOBS: Job[] = [
   // Page 1
   {
     id: 'job-zeta-789',
-    name: 'AlphaFold-Protein-Sim',
+    jobsetId: 'jobset-af-sim',
+    workloadName: 'AlphaFold-Protein-Sim',
     user: 'm.curie',
     cluster: 'us-east-tpu-3',
     status: JobStatus.RUNNING,
@@ -83,8 +84,34 @@ const MOCK_JOBS: Job[] = [
     reservation: 'us-west8-reservation1',
   },
   {
+    id: 'job-zeta-790',
+    jobsetId: 'jobset-af-sim',
+    workloadName: 'AlphaFold-Protein-Sim',
+    user: 'm.curie',
+    cluster: 'us-east-tpu-3',
+    status: JobStatus.RUNNING,
+    priority: 'HIGH',
+    duration: '21h 55m',
+    estimatedRemaining: '40h',
+    gpuUtil: 97,
+    tensorCoreUtil: 94,
+    goodput: 96,
+    goodputType: GoodputType.ML_PRODUCTIVITY,
+    badNodes: [],
+    interruptions: 0,
+    downtime: '0m',
+    submitted: 'Today, 01:10 AM',
+    recentRun: 'run-af-sim-20241025',
+    accelerator: 'Google TPU v5p',
+    jobType: 'Simulation',
+    orchestrator: 'GKE (Kueue)',
+    recentEvent: 'Job running',
+    reservation: 'us-west8-reservation1',
+  },
+  {
     id: 'job-alpha-102',
-    name: 'LLAMA-3-70B-Finetune',
+    jobsetId: 'jobset-llama-3',
+    workloadName: 'LLAMA-3-70B-Finetune',
     user: 'j.doe',
     cluster: 'us-west-training-v4',
     status: JobStatus.RUNNING,
@@ -111,8 +138,38 @@ const MOCK_JOBS: Job[] = [
     reservation: 'us-central1-reservation2',
   },
   {
+    id: 'job-alpha-103',
+    jobsetId: 'jobset-llama-3',
+    workloadName: 'LLAMA-3-70B-Finetune',
+    user: 'j.doe',
+    cluster: 'us-west-training-v4',
+    status: JobStatus.RUNNING,
+    priority: 'HIGH',
+    duration: '4h 10m',
+    estimatedRemaining: '2h 17m',
+    gpuUtil: 91,
+    tensorCoreUtil: 87,
+    goodput: 93,
+    goodputType: GoodputType.ML_PRODUCTIVITY,
+    badNodes: [],
+    interruptions: 0,
+    downtime: '0m',
+    submitted: 'Today, 09:02 AM',
+    recentRun: 'run-20241024-alpha',
+    accelerator: 'NVIDIA H100',
+    jobType: 'LLM Training',
+    orchestrator: 'GKE',
+    stepsPerSecond: 4.1,
+    targetStepsPerSecond: 4.5,
+    computeIdleTime: '13%',
+    memoryBwUtil: 77,
+    recentEvent: 'Processing shard 4',
+    reservation: 'us-central1-reservation2',
+  },
+  {
     id: 'job-recent-001',
-    name: 'Gemini-Flash-Inference',
+    jobsetId: 'jobset-gemini-flash',
+    workloadName: 'Gemini-Flash-Inference',
     user: 'system',
     cluster: 'us-central1-a',
     status: JobStatus.RUNNING,
@@ -137,7 +194,8 @@ const MOCK_JOBS: Job[] = [
   // NEW HANGING JOB FOR DEMO SCENARIO
   {
     id: 'job-hang-007',
-    name: 'GPT-5-MoE-Training',
+    jobsetId: 'jobset-gpt5-moe',
+    workloadName: 'GPT-5-MoE-Training',
     user: 'p.parker',
     cluster: 'us-west-training-v4',
     status: JobStatus.HANGING,
@@ -163,7 +221,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-beta-991',
-    name: 'ResNet-50-Training',
+    jobsetId: 'jobset-resnet-50',
+    workloadName: 'ResNet-50-Training',
     user: 'a.smith',
     cluster: 'eu-central-gpu-2',
     status: JobStatus.FAILED,
@@ -187,7 +246,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-gamma-332',
-    name: 'Bert-Large-Inference',
+    jobsetId: 'jobset-bert-large',
+    workloadName: 'Bert-Large-Inference',
     user: 'm.chen',
     cluster: 'us-east-inference-1',
     status: JobStatus.QUEUED,
@@ -210,7 +270,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-delta-404',
-    name: 'GPT-4-Distillation',
+    jobsetId: 'jobset-gpt4-distill',
+    workloadName: 'GPT-4-Distillation',
     user: 'k.west',
     cluster: 'us-west-training-v4',
     status: JobStatus.INTERRUPTED,
@@ -233,7 +294,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-epsilon-551',
-    name: 'Stable-Diffusion-XL',
+    jobsetId: 'jobset-sd-xl',
+    workloadName: 'Stable-Diffusion-XL',
     user: 's.lee',
     cluster: 'asia-northeast-tpu-1',
     status: JobStatus.RUNNING,
@@ -257,7 +319,8 @@ const MOCK_JOBS: Job[] = [
   // Page 2
   {
     id: 'job-eta-111',
-    name: 'DLRM-Recommendation',
+    jobsetId: 'jobset-dlrm',
+    workloadName: 'DLRM-Recommendation',
     user: 'a.lovelace',
     cluster: 'us-central-gpu-1',
     status: JobStatus.RUNNING,
@@ -281,7 +344,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-theta-222',
-    name: 'Wavenet-Audio-Gen',
+    jobsetId: 'jobset-wavenet',
+    workloadName: 'Wavenet-Audio-Gen',
     user: 'system',
     cluster: 'eu-west-inf-2',
     status: JobStatus.RUNNING,
@@ -305,7 +369,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-iota-333',
-    name: 'ViT-Image-Classification',
+    jobsetId: 'jobset-vit',
+    workloadName: 'ViT-Image-Classification',
     user: 'c.babbage',
     cluster: 'us-west-training-v4',
     status: JobStatus.QUEUED,
@@ -328,7 +393,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-kappa-444',
-    name: 'BERT-Large-Finetune',
+    jobsetId: 'jobset-bert-ft',
+    workloadName: 'BERT-Large-Finetune',
     user: 'j.neumann',
     cluster: 'asia-east-gpu-1',
     status: JobStatus.FAILED,
@@ -352,7 +418,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-lambda-555',
-    name: 'GAN-Image-Generation',
+    jobsetId: 'jobset-gan',
+    workloadName: 'GAN-Image-Generation',
     user: 'g.hopper',
     cluster: 'us-central-tpu-2',
     status: JobStatus.RUNNING,
@@ -376,7 +443,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-mu-666',
-    name: 'Pathways-LLM-Inference',
+    jobsetId: 'jobset-pathways',
+    workloadName: 'Pathways-LLM-Inference',
     user: 'system',
     cluster: 'us-east-inf-1',
     status: JobStatus.RUNNING,
@@ -400,7 +468,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-nu-777',
-    name: 'Reinforcement-Learning-Sim',
+    jobsetId: 'jobset-rl-sim',
+    workloadName: 'Reinforcement-Learning-Sim',
     user: 'r.feinman',
     cluster: 'eu-central-gpu-2',
     status: JobStatus.INTERRUPTED,
@@ -423,7 +492,8 @@ const MOCK_JOBS: Job[] = [
   },
   {
     id: 'job-xi-888',
-    name: 'MoE-Sparse-Training',
+    jobsetId: 'jobset-moe-sparse',
+    workloadName: 'MoE-Sparse-Training',
     user: 's.hawking',
     cluster: 'us-west-training-v4',
     status: JobStatus.HANGING,
@@ -528,11 +598,11 @@ const RainbowBanner: React.FC = () => {
 // Navigation Structure
 const NAV_GROUPS = [
   {
-    title: 'Clusters',
-    id: 'clusters',
+    title: 'Infrastructure',
+    id: 'infrastructure',
     items: [
-      { label: 'Cluster Director', id: 'cluster-director' },
-      { label: 'GKE', id: 'gke' }
+      { label: 'Reservations', id: 'reservations' },
+      { label: 'Clusters', id: 'clusters' }
     ]
   },
   {
@@ -550,7 +620,7 @@ export default function App() {
   // View state controls sub-views within tabs (e.g. List vs Detail)
   const [view, setView] = useState<'dashboard' | 'diagnostics' | 'diagnostics-list' | 'cluster-detail' | 'reservation-detail' | 'fleet-detail' | 'reservation-bulk'>('dashboard');
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    'clusters': true,
+    'infrastructure': true,
     'tools': true,
     'solutions': true
   });
@@ -644,7 +714,8 @@ export default function App() {
     }
 
     return jobs.filter(job => 
-      job.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.workloadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.jobsetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -704,40 +775,34 @@ export default function App() {
 
         // Group & Tab
         if (activeTab === 'reservations') {
-            list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
+            list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
             list.push({ id: 'reservations', label: 'Reservations', active: true });
             return list;
         }
 
         if (activeTab === 'overview') {
-            list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
+            list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
             list.push({ id: 'overview', label: 'Overview', active: true });
             return list;
         }
 
         if (activeTab === 'director') {
-            list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
+            list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
             list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
             list.push({ id: 'director', label: 'us-west8-reservation1', active: true });
             return list;
         }
 
         if (activeTab === 'director-bulk') {
-            list.push({ id: 'grp-infra', label: 'AI/ML Infrastructure', onClick: undefined });
+            list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
             list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
             list.push({ id: 'director-bulk', label: 'us-central1-reservation2', active: true });
             return list;
         }
 
-        if (activeTab === 'cluster-director') {
-            list.push({ id: 'grp-clusters', label: 'Clusters', onClick: undefined });
-            list.push({ id: 'cluster-director', label: 'Cluster Director', active: true });
-            return list;
-        }
-
-        if (activeTab === 'gke') {
-            list.push({ id: 'grp-clusters', label: 'Clusters', onClick: undefined });
-            list.push({ id: 'gke', label: 'GKE', active: true });
+        if (activeTab === 'clusters') {
+            list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
+            list.push({ id: 'clusters', label: 'Clusters', active: true });
             return list;
         }
 
@@ -760,7 +825,7 @@ export default function App() {
 
         // Deep Views
         if ((view === 'diagnostics' || view === 'job-topology') && selectedJob) {
-             list.push({ id: 'job-detail', label: selectedJob.name || selectedJob.id, active: true });
+             list.push({ id: 'job-detail', label: selectedJob.workloadName || selectedJob.id, active: true });
         }
         else if (view === 'cluster-detail' && selectedClusterId) {
              const region = REGIONS.find(r => r.clusters.some(c => c.id === selectedClusterId));
@@ -1071,11 +1136,6 @@ export default function App() {
              setSelectedJob(fullJob as Job);
              setView('diagnostics');
            }} 
-           onJobClick={(jobName) => {
-             // Find full job by name or stub it
-             const fullJob = MOCK_JOBS.find(j => j.name === jobName) || MOCK_JOBS[0];
-             handleViewJob(fullJob);
-           }}
          />
        );
     }
@@ -1085,31 +1145,15 @@ export default function App() {
 
   // 4. CLUSTERS CONTENT
   const renderClustersContent = () => {
-    if (activeTab === 'cluster-director') {
-      return (
-        <div className="space-y-4 animate-fadeIn">
-          <h1 className="text-xl font-bold text-slate-900">Cluster Director</h1>
-          <ClusterTable 
-            filterOrchestrator="Director"
-            onClusterClick={handleClusterClick}
-            onViewTopology={handleClusterClick}
-          />
-        </div>
-      );
-    }
-    if (activeTab === 'gke') {
-      return (
-        <div className="space-y-4 animate-fadeIn">
-          <h1 className="text-xl font-bold text-slate-900">GKE Clusters</h1>
-          <ClusterTable 
-            filterOrchestrator="GKE"
-            onClusterClick={handleClusterClick}
-            onViewTopology={handleClusterClick}
-          />
-        </div>
-      );
-    }
-    return null;
+    return (
+      <div className="space-y-4 animate-fadeIn">
+        <h1 className="text-xl font-bold text-slate-900">Clusters</h1>
+        <ClusterTable 
+          onClusterClick={handleClusterClick}
+          onViewTopology={handleClusterClick}
+        />
+      </div>
+    );
   };
 
   // ... (Header and layout logic remains the same)
@@ -1229,7 +1273,7 @@ export default function App() {
         <aside className="w-56 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto">
            <div className="p-3">
               <div className="flex items-center gap-2 mb-3 px-2">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI/ML Infrastructure</div>
+                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Infrastructure</div>
                  <span className="bg-blue-600 text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-sm">NEW</span>
               </div>
               
@@ -1245,17 +1289,6 @@ export default function App() {
                    >
                      <span>Overview</span>
                    </button>
-
-                  <button 
-                    onClick={() => handleTabChange('reservations')}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors border-l-2 ${
-                      activeTab === 'reservations' 
-                        ? 'bg-[#1967D2]/10 text-[#1967D2] border-[#1967D2]' 
-                        : 'text-slate-600 hover:bg-slate-50 border-transparent hover:border-slate-300'
-                    }`}
-                  >
-                    <span>Reservations</span>
-                  </button>
 
                 {NAV_GROUPS.map(group => (
                   <div key={group.id}>
@@ -1299,7 +1332,7 @@ export default function App() {
 
             {activeTab === 'overview' && renderOverviewContent()}
             
-            {(activeTab === 'cluster-director' || activeTab === 'gke') && renderClustersContent()}
+            {activeTab === 'clusters' && renderClustersContent()}
 
             {activeTab === 'jobs' && renderActiveJobsContent()}
             

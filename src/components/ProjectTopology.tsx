@@ -138,18 +138,18 @@ const TestDetailsPanel: React.FC<{ cluster: any; onBack: () => void }> = ({ clus
       <div className="flex items-center justify-between">
         <button 
           onClick={onBack}
-          className="flex items-center gap-1 text-slate-500 hover:text-[#1967D2] text-xs font-medium transition-colors"
+          className="flex items-center gap-1 text-slate-400 hover:text-[#1967D2] text-xs font-medium transition-colors"
         >
           <ArrowLeft size={14} /> Back to topology
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-700">{cluster.name}</span>
-          <span className="text-[10px] text-slate-400 px-1.5 py-0.5 bg-slate-100 rounded">{cluster.region}</span>
+          <span className="text-xs font-bold text-slate-800">{cluster.name}</span>
+          <span className="text-[10px] text-slate-500 px-1.5 py-0.5 bg-slate-100 rounded">{cluster.region}</span>
         </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
               <ShieldCheck size={14} className="text-[#1967D2]" />
@@ -165,12 +165,12 @@ const TestDetailsPanel: React.FC<{ cluster: any; onBack: () => void }> = ({ clus
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-4 py-2 font-bold text-slate-600">Test Name</th>
-              <th className="px-4 py-2 font-bold text-slate-600">Status</th>
-              <th className="px-4 py-2 font-bold text-slate-600">Last Run</th>
-              <th className="px-4 py-2 font-bold text-slate-600">Duration</th>
-              <th className="px-4 py-2 font-bold text-slate-600">Error Message</th>
-              <th className="px-4 py-2 font-bold text-slate-600 text-right">Actions</th>
+              <th className="px-4 py-2 font-bold text-slate-500">Test Name</th>
+              <th className="px-4 py-2 font-bold text-slate-500">Status</th>
+              <th className="px-4 py-2 font-bold text-slate-500">Last Run</th>
+              <th className="px-4 py-2 font-bold text-slate-500">Duration</th>
+              <th className="px-4 py-2 font-bold text-slate-500">Error Message</th>
+              <th className="px-4 py-2 font-bold text-slate-500 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -191,11 +191,11 @@ const TestDetailsPanel: React.FC<{ cluster: any; onBack: () => void }> = ({ clus
                       {displayStatus}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 flex items-center gap-1">
+                  <td className="px-4 py-3 text-slate-600 flex items-center gap-1">
                     <Clock size={10} /> {test.lastRun}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{test.duration}</td>
-                  <td className="px-4 py-3 text-slate-400 italic">
+                  <td className="px-4 py-3 text-slate-600">{test.duration}</td>
+                  <td className="px-4 py-3 text-slate-500 italic">
                     {(isWarning && test.status === 'fail') ? '-' : test.error}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -245,7 +245,7 @@ export const ProjectTopology: React.FC = () => {
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
-      <div className="px-4 py-3 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="px-4 py-3 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
             <Server size={16} className="text-[#1967D2]" />
@@ -261,7 +261,7 @@ export const ProjectTopology: React.FC = () => {
             placeholder="Search clusters, regions..." 
             value={filterTerm}
             onChange={(e) => setFilterTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 text-slate-700 pl-8 pr-3 py-1.5 rounded-md text-xs focus:outline-none focus:border-[#1967D2] focus:ring-1 focus:ring-[#1967D2] transition-all"
+            className="w-full bg-slate-50 border border-slate-200 text-slate-800 pl-8 pr-3 py-1.5 rounded-md text-xs focus:outline-none focus:border-[#1967D2] focus:ring-1 focus:ring-[#1967D2] transition-all"
           />
         </div>
       </div>
@@ -299,7 +299,7 @@ export const ProjectTopology: React.FC = () => {
               <TableHeader label="Compliance" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-100">
             {table.paginatedData.map((cluster, i) => (
               <tr key={i} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-3 font-medium text-slate-900">{cluster.name}</td>
@@ -327,7 +327,7 @@ export const ProjectTopology: React.FC = () => {
                 <td className="px-4 py-3 font-mono font-bold text-slate-700">{cluster.chips.toLocaleString()}</td>
                 <td className="px-4 py-3 font-mono text-[#1967D2]">{cluster.reservationId}</td>
                 <td className="px-4 py-3">
-                  <span className="flex items-center gap-1 text-slate-600">
+                  <span className="flex items-center gap-1 text-slate-500">
                     <Settings size={10} className="text-slate-400" /> {cluster.mode}
                   </span>
                 </td>
@@ -357,7 +357,7 @@ export const ProjectTopology: React.FC = () => {
         </table>
       </div>
       
-      <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/30">
+      <div className="px-4 py-2 border-t border-slate-200 bg-slate-50">
         <Pagination
           currentPage={table.currentPage}
           totalPages={table.totalPages}

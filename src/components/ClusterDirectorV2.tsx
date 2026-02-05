@@ -735,14 +735,14 @@ const HealthTooltip = ({ content, children, align = 'center' }: { content: strin
   <div className="group relative inline-block">
     {children}
     <div className={`
-      absolute bottom-full mb-2 w-max max-w-[220px] p-2.5 bg-slate-900 text-white text-[10px] leading-relaxed rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none font-normal whitespace-normal border border-white/10 backdrop-blur-sm
+      absolute bottom-full mb-2 w-max max-w-[220px] p-2.5 bg-white text-slate-700 text-[10px] leading-relaxed rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none font-normal whitespace-normal border border-slate-200 backdrop-blur-sm
       ${align === 'center' ? 'left-1/2 -translate-x-1/2 text-center' : ''}
       ${align === 'left' ? 'left-0 text-left' : ''}
       ${align === 'right' ? 'right-0 text-right' : ''}
     `}>
       {content}
       <div className={`
-        absolute top-full border-[6px] border-transparent border-t-slate-900
+        absolute top-full border-[6px] border-transparent border-t-white
         ${align === 'center' ? 'left-1/2 -translate-x-1/2' : ''}
         ${align === 'left' ? 'left-4' : ''}
         ${align === 'right' ? 'right-4' : ''}
@@ -762,7 +762,7 @@ export const ClusterDirectorV2: React.FC<{
   const [configOpen, setConfigOpen] = useState(false);
   const [blockFilter, setBlockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [subblockFilter, setSubblockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY' | 'SCHEDULABLE'>('ALL');
-  const [capacityFilter, setCapacityFilter] = useState<'ALL' | 'DIRECTOR' | 'GKE' | 'IDLE'>('ALL');
+  const [capacityFilter, setCapacityFilter] = useState<'ALL' | 'SLURM' | 'GKE' | 'IDLE'>('ALL');
   const [expandedSubblocks, setExpandedSubblocks] = useState<Set<string>>(new Set());
 
   const toggleSubblock = (id: string) => {
@@ -791,7 +791,7 @@ export const ClusterDirectorV2: React.FC<{
 
   const getSubblockCluster = (sbIdx: number, bIdx: number) => {
     const key = sbIdx * 2 + bIdx;
-    if (key % 3 === 0) return { name: 'Cluster-Director-Main', type: 'DIRECTOR' };
+    if (key % 3 === 0) return { name: 'Slurm-Main', type: 'SLURM' };
     if (key % 3 === 1) return { name: 'GKE-Production-01', type: 'GKE' };
     return { name: 'Idle / Reserve', type: 'IDLE' };
   };
@@ -1297,9 +1297,9 @@ export const ClusterDirectorV2: React.FC<{
 
       case 'CAPACITY':
         const allocatedDelivered = Math.round(reconciledMetrics.totalNodes * 0.95);
-        const directorConsumed = Math.round(reconciledMetrics.totalNodes * 0.4);
+        const slurmConsumed = Math.round(reconciledMetrics.totalNodes * 0.4);
         const gkeConsumed = Math.round(reconciledMetrics.totalNodes * 0.44);
-        const idleConsumed = allocatedDelivered - (directorConsumed + gkeConsumed);
+        const idleConsumed = allocatedDelivered - (slurmConsumed + gkeConsumed);
 
         const capacityData = [
           {
@@ -1316,7 +1316,7 @@ export const ClusterDirectorV2: React.FC<{
           },
           {
             name: 'Consumed',
-            director: directorConsumed,
+            slurm: slurmConsumed,
             gke: gkeConsumed,
             idle: idleConsumed,
             full: reconciledMetrics.totalNodes,
@@ -1376,7 +1376,7 @@ export const ClusterDirectorV2: React.FC<{
                       <div className="w-2 h-2 rounded-full bg-slate-300" /> Pending Qualification
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Director)
+                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Slurm)
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" /> Consumed (GKE)
@@ -1421,12 +1421,12 @@ export const ClusterDirectorV2: React.FC<{
                         ))}
                       </Bar>
                       <Bar 
-                        dataKey="director" 
-                        name="Director" 
+                        dataKey="slurm" 
+                        name="Slurm" 
                         stackId="cap" 
                         fill="#6366f1" 
                         radius={[0, 0, 0, 0]} 
-                        onClick={() => setCapacityFilter(capacityFilter === 'DIRECTOR' ? 'ALL' : 'DIRECTOR')}
+                        onClick={() => setCapacityFilter(capacityFilter === 'SLURM' ? 'ALL' : 'SLURM')}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                       />
                       <Bar 
@@ -1468,7 +1468,7 @@ export const ClusterDirectorV2: React.FC<{
                   <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Consumption Split</h5>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-slate-600">Cluster Director</span>
+                      <span className="text-xs font-medium text-slate-600">Slurm</span>
                       <span className="text-xs font-bold text-slate-900">47.6%</span>
                     </div>
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -1519,7 +1519,7 @@ export const ClusterDirectorV2: React.FC<{
 
       <div className="space-y-6 animate-fadeIn">
          {/* Combined Summary Block (Now at the top) */}
-         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+         <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-800">
             {/* VMs Used Section */}
             <div className="flex items-center gap-6">
                <div className="relative w-20 h-20 flex-shrink-0">
@@ -1636,19 +1636,19 @@ export const ClusterDirectorV2: React.FC<{
          {/* Collapsible Details Sections */}
          <div className="space-y-4">
             {/* Reservation Basics Collapsible */}
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg shadow-sm overflow-hidden">
                <button 
                  onClick={() => setBasicsOpen(!basicsOpen)}
-                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800 transition-colors"
                >
-                  <h3 className="text-lg font-medium text-slate-900">Reservation basics</h3>
-                  <ChevronDown size={20} className={`text-slate-400 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
+                  <h3 className="text-lg font-medium text-slate-100">Reservation basics</h3>
+                  <ChevronDown size={20} className={`text-slate-500 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
                </button>
                {basicsOpen && (
-                  <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
-                     <div className="border border-slate-200 rounded overflow-hidden mt-4">
+                  <div className="px-6 pb-6 border-t border-slate-800 animate-fadeIn">
+                     <div className="border border-slate-800 rounded overflow-hidden mt-4">
                         <table className="w-full text-sm">
-                           <tbody className="divide-y divide-slate-100">
+                           <tbody className="divide-y divide-slate-800">
                               {[
                                 { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
                                 { label: 'Assured count', value: '17' },
@@ -1682,13 +1682,13 @@ export const ClusterDirectorV2: React.FC<{
             </div>
 
             {/* Configuration Details Collapsible */}
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg shadow-sm overflow-hidden">
                <button 
                  onClick={() => setConfigOpen(!configOpen)}
-                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800 transition-colors"
                >
-                  <h3 className="text-lg font-medium text-slate-900">Configuration details</h3>
-                  <ChevronDown size={20} className={`text-slate-400 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
+                  <h3 className="text-lg font-medium text-slate-100">Configuration details</h3>
+                  <ChevronDown size={20} className={`text-slate-500 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
                </button>
                {configOpen && (
                   <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
@@ -1798,7 +1798,7 @@ export const ClusterDirectorV2: React.FC<{
                       <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-md animate-pulse">
                         <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Filtering by capacity:</span>
                         <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase ${
-                          capacityFilter === 'DIRECTOR' ? 'bg-indigo-500 text-white' :
+                          capacityFilter === 'SLURM' ? 'bg-indigo-500 text-white' :
                           capacityFilter === 'GKE' ? 'bg-emerald-500 text-white' :
                           'bg-amber-500 text-white'
                         }`}>
@@ -1839,9 +1839,9 @@ export const ClusterDirectorV2: React.FC<{
                       }
 
                       return (
-                        <div key={sb.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm transition-all hover:shadow-md">
+                        <div key={sb.id} className="border border-slate-800 rounded-lg bg-slate-900 overflow-hidden shadow-sm transition-all hover:shadow-md">
                           <div 
-                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors"
                             onClick={() => toggleSubblock(sb.id)}
                           >
                             <div className="flex items-center gap-3">
@@ -1879,7 +1879,7 @@ export const ClusterDirectorV2: React.FC<{
                                         <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subblock</h5>
                                         <span className="text-[9px] font-mono text-slate-400">B{originalSbIdx + 1}-sb{bIdx + 1}</span>
                                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${
-                                          clusterInfo.type === 'DIRECTOR' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                          clusterInfo.type === 'SLURM' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                                           clusterInfo.type === 'GKE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                           'bg-amber-50 text-amber-700 border-amber-100'
                                         }`}>

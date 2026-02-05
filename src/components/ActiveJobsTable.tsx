@@ -24,11 +24,32 @@ export const ActiveJobsTable: React.FC<ActiveJobsTableProps> = ({ jobs, onViewJo
           <thead>
             <tr>
               <TableHeader
-                label="Job ID / Name"
+                label="Job ID"
                 sortable={true}
-                sorted={table.sortColumn === 'name'}
+                sorted={table.sortColumn === 'id'}
                 ascending={table.sortDirection === 'asc'}
-                onClick={() => table.handleSort('name')}
+                onClick={() => table.handleSort('id')}
+              />
+              <TableHeader
+                label="Workload"
+                sortable={true}
+                sorted={table.sortColumn === 'workloadName'}
+                ascending={table.sortDirection === 'asc'}
+                onClick={() => table.handleSort('workloadName')}
+              />
+              <TableHeader
+                label="Jobset ID"
+                sortable={true}
+                sorted={table.sortColumn === 'jobsetId'}
+                ascending={table.sortDirection === 'asc'}
+                onClick={() => table.handleSort('jobsetId')}
+              />
+              <TableHeader
+                label="Reservation"
+                sortable={true}
+                sorted={table.sortColumn === 'reservation'}
+                ascending={table.sortDirection === 'asc'}
+                onClick={() => table.handleSort('reservation')}
               />
               <TableHeader
                 label="Status"
@@ -45,7 +66,7 @@ export const ActiveJobsTable: React.FC<ActiveJobsTableProps> = ({ jobs, onViewJo
                 onClick={() => table.handleSort('cluster')}
               />
               <TableHeader
-                label="Orchestrator"
+                label="GKE / Slurm"
                 sortable={true}
                 sorted={table.sortColumn === 'orchestrator'}
                 ascending={table.sortDirection === 'asc'}
@@ -72,15 +93,20 @@ export const ActiveJobsTable: React.FC<ActiveJobsTableProps> = ({ jobs, onViewJo
           <tbody className="divide-y divide-slate-100">
             {table.paginatedData.map((job) => (
               <tr key={job.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-4 py-2 text-slate-500 font-mono text-[10px]">{job.id}</td>
                 <td className="px-4 py-2 font-medium text-slate-900 truncate" style={{ maxWidth: '200px' }}>
-                  <div className="font-bold text-slate-800">{job.name}</div>
-                  <div className="text-slate-500 font-mono text-[10px]">{job.id}</div>
+                  <div className="font-bold text-slate-800">{job.workloadName}</div>
+                  <div className="text-[9px] text-slate-400 font-normal">{job.reservation}</div>
                 </td>
+                <td className="px-4 py-2 text-slate-600 font-mono text-[11px]">{job.jobsetId}</td>
+                <td className="px-4 py-2 text-slate-600 text-[11px]">{job.reservation}</td>
                 <td className="px-4 py-2">
                   <StatusBadge status={job.status} />
                 </td>
                 <td className="px-4 py-2 text-slate-600 font-mono text-[11px] truncate" style={{ maxWidth: '150px' }}>{job.cluster}</td>
-                <td className="px-4 py-2 text-slate-600 truncate" style={{ maxWidth: '120px' }}>{job.orchestrator}</td>
+                <td className="px-4 py-2 text-slate-600 truncate" style={{ maxWidth: '120px' }}>
+                  {job.orchestrator?.includes('GKE') ? 'GKE' : job.orchestrator === 'Slurm' ? 'Slurm' : job.orchestrator}
+                </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-2">
                     <div className="w-16 bg-slate-200 h-2 rounded-full overflow-hidden">

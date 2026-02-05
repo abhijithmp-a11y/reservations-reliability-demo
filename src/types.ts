@@ -15,7 +15,8 @@ export enum GoodputType {
 
 export interface Job {
   id: string;
-  name: string;
+  jobsetId: string;
+  workloadName: string;
   user: string;
   cluster: string; // Added to support multi-cluster view
   status: JobStatus;

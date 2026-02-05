@@ -144,8 +144,11 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{job.name}</h1>
+              <h1 className="text-xl font-bold text-slate-900">{job.workloadName}</h1>
               <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                {job.jobsetId}
+              </span>
+              <span className="text-[10px] font-mono bg-slate-50 text-slate-400 px-1.5 py-0.5 rounded border border-slate-100">
                 {job.id}
               </span>
             </div>

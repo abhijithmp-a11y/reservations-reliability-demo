@@ -28,6 +28,8 @@ export const ClusterTable: React.FC<ClusterTableProps> = ({ filterOrchestrator, 
           <tr className="bg-slate-50 border-b border-slate-200">
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Cluster Name</th>
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Region</th>
+            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Reservation</th>
+            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Orchestrator</th>
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Chips</th>
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Utilization</th>
@@ -51,6 +53,16 @@ export const ClusterTable: React.FC<ClusterTableProps> = ({ filterOrchestrator, 
                   <MapPin size={14} className="text-slate-400" />
                   {cluster.regionName}
                 </div>
+              </td>
+              <td className="px-6 py-4 text-sm text-slate-600 font-mono">
+                {(cluster as any).reservation}
+              </td>
+              <td className="px-6 py-4">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  cluster.orchestrator === 'GKE' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {cluster.orchestrator === 'Director' ? 'Slurm' : cluster.orchestrator}
+                </span>
               </td>
               <td className="px-6 py-4">
                 <span className="flex items-center gap-1 text-xs text-slate-600">

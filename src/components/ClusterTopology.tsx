@@ -11,8 +11,8 @@ export const REGIONS = [
     status: 'healthy',
     latency: '24ms',
     clusters: [
-      { id: 'c1', name: 'us-west-train-v4', type: 'H100 Pod', orchestrator: 'GKE', count: 2048, util: 94, status: 'healthy' },
-      { id: 'c2', name: 'us-west-inf-01', type: 'T4 Pool', orchestrator: 'Slurm', count: 512, util: 45, status: 'warning' }
+      { id: 'c1', name: 'us-west-train-v4', type: 'H100 Pod', orchestrator: 'GKE', count: 2048, util: 94, status: 'healthy', reservation: 'us-west8-reservation1' },
+      { id: 'c2', name: 'us-west-inf-01', type: 'T4 Pool', orchestrator: 'Slurm', count: 512, util: 45, status: 'warning', reservation: 'us-west8-reservation1' }
     ]
   },
   {
@@ -21,7 +21,7 @@ export const REGIONS = [
     status: 'healthy',
     latency: '82ms',
     clusters: [
-      { id: 'c3', name: 'us-east-train-02', type: 'TPU v5p', orchestrator: 'GKE', count: 1024, util: 98, status: 'healthy' }
+      { id: 'c3', name: 'us-east-train-02', type: 'TPU v5p', orchestrator: 'GKE', count: 1024, util: 98, status: 'healthy', reservation: 'us-central1-reservation2' }
     ]
   },
   {
@@ -30,8 +30,8 @@ export const REGIONS = [
     status: 'warning',
     latency: '145ms',
     clusters: [
-      { id: 'c4', name: 'eu-central-gpu-2', type: 'A100 Superpod', orchestrator: 'Vertex AI', count: 1024, util: 88, status: 'warning' },
-      { id: 'c5', name: 'eu-west-inf-03', type: 'T4 Pool', orchestrator: 'Compute', count: 256, util: 60, status: 'healthy' }
+      { id: 'c4', name: 'eu-central-gpu-2', type: 'A100 Superpod', orchestrator: 'Vertex AI', count: 1024, util: 88, status: 'warning', reservation: 'europe-north-reservation3' },
+      { id: 'c5', name: 'eu-west-inf-03', type: 'T4 Pool', orchestrator: 'Compute', count: 256, util: 60, status: 'healthy', reservation: 'europe-north-reservation3' }
     ]
   },
   {
@@ -40,7 +40,7 @@ export const REGIONS = [
     status: 'healthy',
     latency: '110ms',
     clusters: [
-      { id: 'c6', name: 'asia-ne-tpu-1', type: 'TPU v4', orchestrator: 'Director', count: 2048, util: 95, status: 'healthy' }
+      { id: 'c6', name: 'asia-ne-tpu-1', type: 'TPU v4', orchestrator: 'Director', count: 2048, util: 95, status: 'healthy', reservation: 'asia-south-reservation4' }
     ]
   }
 ];
@@ -150,6 +150,10 @@ export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick
                 <div className="flex justify-between items-center border-b border-slate-50 pb-0.5">
                    <span className="text-[9px] text-slate-500 font-medium">Utilization</span>
                    <span className="text-[10px] font-bold text-[#1967D2] font-mono">{cluster.util}%</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-50 pb-0.5">
+                   <span className="text-[9px] text-slate-500 font-medium">Reservation</span>
+                   <span className="text-[10px] font-bold text-slate-700 font-mono truncate max-w-[100px]" title={(cluster as any).reservation}>{(cluster as any).reservation}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 pb-0.5">
                    <span className="text-[9px] text-slate-500 font-medium">Active jobs</span>

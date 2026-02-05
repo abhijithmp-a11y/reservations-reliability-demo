@@ -84,7 +84,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({ onNavigate }
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                     res.type === 'Standard' 
                       ? 'bg-slate-100 text-slate-600 border-slate-200' 
-                      : 'bg-blue-50 text-blue-700 border-blue-100'
+                      : 'bg-blue-50 text-blue-600 border-blue-100'
                   }`}>
                     {res.type}
                   </span>
@@ -123,7 +123,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({ onNavigate }
             <div className="p-2 bg-emerald-50 rounded-lg">
               <Activity size={20} className="text-emerald-600" />
             </div>
-            <h3 className="font-bold text-slate-800">Total Capacity</h3>
+            <h3 className="font-bold text-slate-700">Total Capacity</h3>
           </div>
           <div className="text-3xl font-bold text-slate-900">4,464</div>
           <div className="text-xs text-slate-500 mt-1">Assured instances across all reservations</div>
@@ -134,7 +134,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({ onNavigate }
             <div className="p-2 bg-blue-50 rounded-lg">
               <Calendar size={20} className="text-blue-600" />
             </div>
-            <h3 className="font-bold text-slate-800">Active Reservations</h3>
+            <h3 className="font-bold text-slate-700">Active Reservations</h3>
           </div>
           <div className="text-3xl font-bold text-slate-900">2</div>
           <div className="text-xs text-slate-500 mt-1">1 Standard, 1 Extended</div>
@@ -145,7 +145,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({ onNavigate }
             <div className="p-2 bg-amber-50 rounded-lg">
               <Activity size={20} className="text-amber-600" />
             </div>
-            <h3 className="font-bold text-slate-800">Utilization</h3>
+            <h3 className="font-bold text-slate-700">Utilization</h3>
           </div>
           <div className="text-3xl font-bold text-slate-900">84%</div>
           <div className="text-xs text-slate-500 mt-1">Average across all resources</div>

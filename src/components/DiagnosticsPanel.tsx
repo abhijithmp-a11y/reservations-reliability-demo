@@ -243,7 +243,9 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ job, onBack 
         <div className="flex flex-col gap-3">
            <h1 className="text-xl font-bold text-slate-900">{job.id}</h1>
            <div className="text-sm text-slate-500 flex items-center gap-2">
-             <span className="font-medium text-slate-400 uppercase text-[10px]">Job:</span> {job.name}
+             <span className="font-medium text-slate-400 uppercase text-[10px]">Workload:</span> {job.workloadName}
+             <span className="mx-2 text-slate-300">|</span>
+             <span className="font-medium text-slate-400 uppercase text-[10px]">Jobset:</span> {job.jobsetId}
            </div>
         </div>
       </div>

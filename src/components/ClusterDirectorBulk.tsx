@@ -82,14 +82,14 @@ const HealthTooltip = ({ content, children, align = 'center' }: { content: strin
   <div className="group relative inline-block">
     {children}
     <div className={`
-      absolute bottom-full mb-2 w-max max-w-[220px] p-2.5 bg-slate-900 text-white text-[10px] leading-relaxed rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none font-normal whitespace-normal border border-white/10 backdrop-blur-sm
+      absolute bottom-full mb-2 w-max max-w-[220px] p-2.5 bg-white text-slate-700 text-[10px] leading-relaxed rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none font-normal whitespace-normal border border-slate-200 backdrop-blur-sm
       ${align === 'center' ? 'left-1/2 -translate-x-1/2 text-center' : ''}
       ${align === 'left' ? 'left-0 text-left' : ''}
       ${align === 'right' ? 'right-0 text-right' : ''}
     `}>
       {content}
       <div className={`
-        absolute top-full border-[6px] border-transparent border-t-slate-900
+        absolute top-full border-[6px] border-transparent border-t-white
         ${align === 'center' ? 'left-1/2 -translate-x-1/2' : ''}
         ${align === 'left' ? 'left-4' : ''}
         ${align === 'right' ? 'right-4' : ''}
@@ -405,7 +405,7 @@ export const ClusterDirectorBulk: React.FC<{
   const [configOpen, setConfigOpen] = useState(false);
   const [blockFilter, setBlockFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [subblockFilter, setSubblockFilter] = useState<'ALL' | 'HEALTHY' | 'SCHEDULABLE' | 'UNHEALTHY'>('ALL');
-  const [capacityFilter, setCapacityFilter] = useState<'ALL' | 'DIRECTOR' | 'GKE' | 'IDLE'>('ALL');
+  const [capacityFilter, setCapacityFilter] = useState<'ALL' | 'SLURM' | 'GKE' | 'IDLE'>('ALL');
   const [topologyFilter, setTopologyFilter] = useState<'ALL' | 'HEALTHY' | 'UNHEALTHY'>('ALL');
   const [topologySort, setTopologySort] = useState<'MOST_UNHEALTHY' | 'LEAST_UNHEALTHY'>('MOST_UNHEALTHY');
   const [expandedSubblocks, setExpandedSubblocks] = useState<Set<string>>(new Set());
@@ -462,7 +462,7 @@ export const ClusterDirectorBulk: React.FC<{
 
   const getSubblockCluster = (blockIdx: number, sbIdx: number) => {
     const key = blockIdx * 8 + sbIdx;
-    if (key % 3 === 0) return { name: 'Cluster-Director-Bulk-01', type: 'DIRECTOR' };
+    if (key % 3 === 0) return { name: 'Slurm-Bulk-01', type: 'SLURM' };
     if (key % 3 === 1) return { name: 'GKE-Data-Lake-02', type: 'GKE' };
     return { name: 'Idle / Reserve', type: 'IDLE' };
   };
@@ -788,9 +788,9 @@ export const ClusterDirectorBulk: React.FC<{
 
       case 'CAPACITY': {
         const allocatedDelivered = Math.round(reconciledMetrics.totalNodes * 0.95);
-        const directorConsumed = Math.round(reconciledMetrics.totalNodes * 0.4);
+        const slurmConsumed = Math.round(reconciledMetrics.totalNodes * 0.4);
         const gkeConsumed = Math.round(reconciledMetrics.totalNodes * 0.44);
-        const idleConsumed = allocatedDelivered - (directorConsumed + gkeConsumed);
+        const idleConsumed = allocatedDelivered - (slurmConsumed + gkeConsumed);
 
         const capacityData = [
           {
@@ -807,7 +807,7 @@ export const ClusterDirectorBulk: React.FC<{
           },
           {
             name: 'Consumed',
-            director: directorConsumed,
+            slurm: slurmConsumed,
             gke: gkeConsumed,
             idle: idleConsumed,
             full: reconciledMetrics.totalNodes,
@@ -867,7 +867,7 @@ export const ClusterDirectorBulk: React.FC<{
                       <div className="w-2 h-2 rounded-full bg-slate-300" /> Pending Qualification
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Director)
+                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Slurm)
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" /> Consumed (GKE)
@@ -912,12 +912,12 @@ export const ClusterDirectorBulk: React.FC<{
                         ))}
                       </Bar>
                       <Bar 
-                        dataKey="director" 
-                        name="Director" 
+                        dataKey="slurm" 
+                        name="Slurm" 
                         stackId="cap" 
                         fill="#6366f1" 
                         radius={[0, 0, 0, 0]} 
-                        onClick={() => setCapacityFilter(capacityFilter === 'DIRECTOR' ? 'ALL' : 'DIRECTOR')}
+                        onClick={() => setCapacityFilter(capacityFilter === 'SLURM' ? 'ALL' : 'SLURM')}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                       />
                       <Bar 
@@ -959,7 +959,7 @@ export const ClusterDirectorBulk: React.FC<{
                   <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Consumption Split</h5>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-slate-600">Cluster Director</span>
+                      <span className="text-xs font-medium text-slate-600">Slurm</span>
                       <span className="text-xs font-bold text-slate-900">47.6%</span>
                     </div>
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -1008,7 +1008,7 @@ export const ClusterDirectorBulk: React.FC<{
           <div className="flex items-center gap-6">
             <div className="relative w-20 h-20 flex-shrink-0">
               <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{value: 100}]} innerRadius={32} outerRadius={40} dataKey="value" stroke="none"><Cell fill="#1a73e8" /></Pie></PieChart></ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-lg font-bold text-slate-800">{reconciledMetrics.nodesWithVM}</span><span className="text-[9px] text-slate-500 uppercase font-bold">Used</span></div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-lg font-bold text-slate-900">{reconciledMetrics.nodesWithVM}</span><span className="text-[9px] text-slate-500 uppercase font-bold">Used</span></div>
             </div>
             <div><h4 className="text-sm font-medium text-slate-800 mb-1">VMs used</h4><p className="text-xs text-slate-500">Extended Reservation</p></div>
           </div>
@@ -1020,7 +1020,7 @@ export const ClusterDirectorBulk: React.FC<{
             </p>
           </div>
           <div className="md:pl-8 pt-6 md:pt-0">
-            <div className="flex items-center gap-1.5 mb-1"><h4 className="text-sm font-medium text-slate-800">Maintenance and Repairs</h4><HelpCircle size={14} className="text-slate-400 cursor-help" /></div>
+            <div className="flex items-center gap-1.5 mb-1"><h4 className="text-sm font-medium text-slate-800">Maintenance and Repairs</h4><HelpCircle size={14} className="text-slate-500 cursor-help" /></div>
             <p className="text-xs text-slate-500 leading-relaxed">Maintenance and Repairs affecting this extended reservation. <button onClick={() => handleTabChange('MAINTENANCE')} className="text-[#1a73e8] hover:underline font-medium">View details</button></p>
           </div>
         </div>
@@ -1028,10 +1028,10 @@ export const ClusterDirectorBulk: React.FC<{
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-slate-900">Reservation overview</h3>
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 pt-4 border-b border-slate-100 bg-slate-50/30">
+            <div className="px-6 pt-4 border-b border-slate-200 bg-slate-50">
               <div className="flex items-center gap-6">
                 {(['HEALTH', 'MAINTENANCE', 'CAPACITY'] as const).map((mode) => (
-                  <button key={mode} onClick={() => handleTabChange(mode)} className={`pb-3 text-xs font-bold transition-all relative ${viewMode === mode ? 'text-[#1967D2]' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <button key={mode} onClick={() => handleTabChange(mode)} className={`pb-3 text-xs font-bold transition-all relative ${viewMode === mode ? 'text-[#1967D2]' : 'text-slate-500 hover:text-slate-700'}`}>
                     {mode === 'MAINTENANCE' ? 'Maintenance and repairs' : mode === 'CAPACITY' ? 'Capacity' : 'Health'}
                     {viewMode === mode && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1967D2] rounded-full" />}
                   </button>
@@ -1046,13 +1046,13 @@ export const ClusterDirectorBulk: React.FC<{
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <button onClick={() => setBasicsOpen(!basicsOpen)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <h3 className="text-lg font-medium text-slate-900">Reservation basics</h3>
-              <ChevronDown size={20} className={`text-slate-400 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={20} className={`text-slate-500 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
             </button>
             {basicsOpen && (
-              <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
-                <div className="border border-slate-200 rounded overflow-hidden mt-4">
+              <div className="px-6 pb-6 border-t border-slate-800 animate-fadeIn">
+                <div className="border border-slate-800 rounded overflow-hidden mt-4">
                   <table className="w-full text-sm">
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-800">
                       {[
                         { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
                         { label: 'Assured count', value: reconciledMetrics.totalNodes.toString() },
@@ -1075,7 +1075,7 @@ export const ClusterDirectorBulk: React.FC<{
                         { label: 'Use with VM instance', value: 'Any' },
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-500 font-medium w-1/2">{row.label}</td>
                           <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
                         </tr>
                       ))}
@@ -1088,10 +1088,10 @@ export const ClusterDirectorBulk: React.FC<{
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <button onClick={() => setConfigOpen(!configOpen)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <h3 className="text-lg font-medium text-slate-900">Configuration details</h3>
-              <ChevronDown size={20} className={`text-slate-400 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={20} className={`text-slate-500 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
             </button>
             {configOpen && (
-              <div className="px-6 pb-6 border-t border-slate-100 animate-fadeIn">
+              <div className="px-6 pb-6 border-t border-slate-200 animate-fadeIn">
                 <div className="border border-slate-200 rounded overflow-hidden mt-4">
                   <table className="w-full text-sm">
                     <tbody className="divide-y divide-slate-100">
@@ -1105,12 +1105,12 @@ export const ClusterDirectorBulk: React.FC<{
                         { label: 'Placement policy', value: 'Compact' },
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-500 font-medium w-1/2">{row.label}</td>
                           <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
                         </tr>
                       ))}
                       {/* Accelerators Sub-header */}
-                      <tr className="bg-slate-50/50">
+                      <tr className="bg-slate-50">
                         <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Accelerators</td>
                       </tr>
                       {[
@@ -1118,12 +1118,12 @@ export const ClusterDirectorBulk: React.FC<{
                         { label: 'Accelerator count', value: '8' },
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-500 font-medium w-1/2">{row.label}</td>
                           <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
                         </tr>
                       ))}
                       {/* Local SSDs Sub-header */}
-                      <tr className="bg-slate-50/50">
+                      <tr className="bg-slate-50">
                         <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Local SSDs</td>
                       </tr>
                       {[
@@ -1131,7 +1131,7 @@ export const ClusterDirectorBulk: React.FC<{
                         { label: 'Interface', value: 'NVME' },
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-2.5 px-4 text-slate-600 font-medium w-1/2">{row.label}</td>
+                          <td className="py-2.5 px-4 text-slate-500 font-medium w-1/2">{row.label}</td>
                           <td className="py-2.5 px-4 text-slate-900">{row.value}</td>
                         </tr>
                       ))}
@@ -1148,14 +1148,14 @@ export const ClusterDirectorBulk: React.FC<{
             <h3 className="text-lg font-medium text-slate-900">Physical resource topology</h3>
             <div className="flex items-center gap-4">
               {/* Filter */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-md p-0.5 shadow-sm">
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md p-0.5 shadow-sm">
                 {(['ALL', 'HEALTHY', 'UNHEALTHY'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setTopologyFilter(f)}
                     className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${
                       topologyFilter === f 
-                        ? 'bg-slate-100 text-[#1967D2]' 
+                        ? 'bg-white text-[#1967D2] shadow-sm' 
                         : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
@@ -1164,10 +1164,10 @@ export const ClusterDirectorBulk: React.FC<{
                 ))}
               </div>
               {/* Sort */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-md p-0.5 shadow-sm">
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md p-0.5 shadow-sm">
                 <button
                   onClick={() => setTopologySort(topologySort === 'MOST_UNHEALTHY' ? 'LEAST_UNHEALTHY' : 'MOST_UNHEALTHY')}
-                  className="px-3 py-1 text-[10px] font-bold text-[#1967D2] flex items-center gap-1.5 hover:bg-slate-50 transition-all"
+                  className="px-3 py-1 text-[10px] font-bold text-[#1967D2] flex items-center gap-1.5 hover:bg-white rounded transition-all"
                 >
                   <TrendingUp size={12} className={topologySort === 'LEAST_UNHEALTHY' ? 'rotate-180' : ''} />
                   {topologySort === 'MOST_UNHEALTHY' ? 'Most unhealthy' : 'Least unhealthy'}
@@ -1226,7 +1226,7 @@ export const ClusterDirectorBulk: React.FC<{
                   <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-md animate-pulse">
                     <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Filtering by capacity:</span>
                     <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase ${
-                      capacityFilter === 'DIRECTOR' ? 'bg-indigo-500 text-white' :
+                      capacityFilter === 'SLURM' ? 'bg-indigo-500 text-white' :
                       capacityFilter === 'GKE' ? 'bg-emerald-500 text-white' :
                       'bg-amber-500 text-white'
                     }`}>
@@ -1287,7 +1287,7 @@ export const ClusterDirectorBulk: React.FC<{
                                         <span className="text-[9px] font-mono text-slate-400">{sb.label}</span>
                                       </div>
                                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border w-fit ${
-                                        clusterInfo.type === 'DIRECTOR' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                        clusterInfo.type === 'SLURM' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                                         clusterInfo.type === 'GKE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                         'bg-amber-50 text-amber-700 border-amber-100'
                                       }`}>

@@ -23,7 +23,7 @@ export const Card: React.FC<CardProps> = ({ title, children, className = "", act
     <div className={`bg-white border border-slate-200 rounded-md p-3 shadow-sm ${className}`}>
       {(title || action) && (
         <div className="flex justify-between items-center mb-2">
-          {title && <h3 className="text-slate-800 font-semibold text-xs tracking-wider uppercase">{title}</h3>}
+          {title && <h3 className="text-slate-500 font-semibold text-xs tracking-wider uppercase">{title}</h3>}
           {action && <div>{action}</div>}
         </div>
       )}
@@ -50,7 +50,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({ label, tooltip, classN
       {sortable && (
         <div className="w-4 h-4 flex items-center justify-center">
           {sorted ? (
-            ascending ? <ChevronUp size={12} className="text-slate-700" /> : <ChevronDown size={12} className="text-slate-700" />
+            ascending ? <ChevronUp size={12} className="text-slate-600" /> : <ChevronDown size={12} className="text-slate-600" />
           ) : (
             <ChevronDown size={12} className="text-slate-400 group-hover:text-slate-600" />
           )}
@@ -58,9 +58,9 @@ export const TableHeader: React.FC<TableHeaderProps> = ({ label, tooltip, classN
       )}
     </div>
     {tooltip && (
-      <div className="absolute top-6 left-0 w-56 bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 font-normal normal-case leading-relaxed pointer-events-none">
+      <div className="absolute top-6 left-0 w-56 bg-white text-slate-700 text-[10px] p-2 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 font-normal normal-case leading-relaxed pointer-events-none border border-slate-200">
         {tooltip}
-        <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-800 rotate-45"></div>
+        <div className="absolute -top-1 left-4 w-2 h-2 bg-white border-t border-l border-slate-200 rotate-45"></div>
       </div>
     )}
   </th>
@@ -187,7 +187,7 @@ export const DonutChart: React.FC<{
         {data.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-            <span className="text-[10px] font-medium text-slate-600 truncate max-w-[80px]">{item.name}</span>
+            <span className="text-[10px] font-medium text-slate-500 truncate max-w-[80px]">{item.name}</span>
             <span className="text-[10px] font-bold text-slate-900 ml-auto">{item.value.toLocaleString()}</span>
           </div>
         ))}
@@ -220,12 +220,12 @@ export const StatCard: React.FC<StatCardProps> = ({ label, value, trend, trendUp
           className="absolute top-2 right-2 z-30 group/tooltip"
           onClick={(e) => e.stopPropagation()}
         >
-             <div className="bg-white rounded-full">
-               <Info size={12} className="text-slate-300 hover:text-[#1967D2] cursor-help transition-colors" />
+             <div className="bg-slate-100 rounded-full">
+               <Info size={12} className="text-slate-500 hover:text-[#1967D2] cursor-help transition-colors" />
              </div>
-             <div className="absolute right-0 w-56 bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 translate-y-1 text-left font-normal normal-case leading-relaxed pointer-events-none">
+             <div className="absolute right-0 w-56 bg-white text-slate-700 text-[10px] p-2 rounded shadow-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 translate-y-1 text-left font-normal normal-case leading-relaxed pointer-events-none border border-slate-200">
                 {tooltip}
-                <div className="absolute -top-1 right-1.5 w-2 h-2 bg-slate-800 rotate-45"></div>
+                <div className="absolute -top-1 right-1.5 w-2 h-2 bg-white border-t border-l border-slate-200 rotate-45"></div>
              </div>
         </div>
     )}
@@ -236,7 +236,7 @@ export const StatCard: React.FC<StatCardProps> = ({ label, value, trend, trendUp
         <h4 className="text-xl font-bold text-slate-900 leading-tight">{value}</h4>
         {trend && (
           <div className="mt-1 text-[10px] font-medium">
-            <span className={`${trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>{trend}</span> <span className="text-slate-400 ml-0.5">vs last 24h</span>
+            <span className={`${trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>{trend}</span> <span className="text-slate-500 ml-0.5">vs last 24h</span>
           </div>
         )}
       </div>
