@@ -423,6 +423,7 @@ export const ClusterDirectorB200: React.FC<{
   ]);
   const [basicsOpen, setBasicsOpen] = useState(true);
   const [configOpen, setConfigOpen] = useState(true);
+  const [capacityFilter, setCapacityFilter] = useState<'ALL' | 'SLURM' | 'GKE' | 'IDLE'>('ALL');
   const [selectedNode, setSelectedNode] = useState<{ blockId: string; nodeIdx: number } | null>(null);
 
   const reconciledMetrics = {
@@ -628,45 +629,194 @@ export const ClusterDirectorB200: React.FC<{
         );
 
       case 'CAPACITY':
+        const allocatedDelivered = Math.round(reconciledMetrics.totalNodes * 0.78);
+        const slurmConsumed = Math.round(reconciledMetrics.totalNodes * 0.35);
+        const gkeConsumed = Math.round(reconciledMetrics.totalNodes * 0.39);
+        const idleConsumed = allocatedDelivered - (slurmConsumed + gkeConsumed);
+
         const capacityData = [
-          { name: 'Reserved', value: 256, fill: '#3b82f6' },
-          { name: 'Allocated', value: 200, fill: '#10b981' },
-          { name: 'Pending', value: 56, fill: '#f59e0b' }
+          {
+            name: 'Reserved',
+            delivered: reconciledMetrics.totalNodes,
+            pending: 0,
+            full: reconciledMetrics.totalNodes,
+          },
+          {
+            name: 'Allocated',
+            delivered: allocatedDelivered,
+            pending: Math.round(reconciledMetrics.totalNodes * 0.22),
+            full: reconciledMetrics.totalNodes,
+          },
+          {
+            name: 'Consumed',
+            slurm: slurmConsumed,
+            gke: gkeConsumed,
+            idle: idleConsumed,
+            full: reconciledMetrics.totalNodes,
+          }
         ];
 
+        const CustomCapacityTooltip = ({ active, payload, label }: any) => {
+          if (active && payload && payload.length) {
+            return (
+              <div className="bg-white text-slate-900 p-3 rounded-lg shadow-xl text-[10px] border border-slate-200 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-200 pb-1 uppercase tracking-wider text-slate-500">
+                  {label}
+                </div>
+                <div className="space-y-1.5 mt-2">
+                  {payload.map((p: any, index: number) => {
+                    if (!p.value || p.value === 0) return null;
+                    const isPending = p.dataKey === 'pending';
+                    return (
+                      <div key={index} className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                          <span className="font-bold">{isPending ? 'Pending Qualification' : p.name}:</span>
+                          <span>{p.value} units</span>
+                        </div>
+                        {isPending && (
+                          <div className="text-amber-400 pl-3.5 font-medium italic">
+                            Expected delivery: Feb 12, 2026
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        };
+
         return (
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               <div className="h-64">
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-slate-50/50 rounded-xl border border-slate-100 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Capacity Lifecycle</h4>
+                    <p className="text-xs text-slate-500">Reserved vs Allocated vs Consumed</p>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 justify-end max-w-[60%]">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" /> Reserved
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-cyan-400" /> Allocated
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-slate-300" /> Pending Qualification
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500" /> Consumed (Slurm)
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" /> Consumed (GKE)
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+                      <div className="w-2 h-2 rounded-full bg-amber-400" /> Idle
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={capacityData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 'bold'}} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
-                      <Tooltip cursor={{fill: '#f8fafc'}} />
-                      <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={60} />
+                    <BarChart
+                      data={capacityData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                      barSize={32}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                      <XAxis type="number" hide domain={[0, reconciledMetrics.totalNodes]} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false}
+                        fontSize={11}
+                        fontWeight="bold"
+                        tick={{ fill: '#475569' }}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: 'transparent' }}
+                        content={<CustomCapacityTooltip />}
+                      />
+                      <Bar dataKey="delivered" name="Delivered" stackId="cap" radius={[0, 0, 0, 0]}>
+                        {capacityData.map((entry, index) => (
+                          <Cell key={`cell-del-${index}`} fill={entry.name === 'Reserved' ? '#3b82f6' : entry.name === 'Allocated' ? '#22d3ee' : 'transparent'} />
+                        ))}
+                      </Bar>
+                      <Bar dataKey="pending" name="Pending Qualification" stackId="cap" radius={[0, 4, 4, 0]}>
+                        {capacityData.map((entry, index) => (
+                          <Cell key={`cell-pen-${index}`} fill={entry.name === 'Allocated' ? '#cbd5e1' : 'transparent'} />
+                        ))}
+                      </Bar>
+                      <Bar 
+                        dataKey="slurm" 
+                        name="Slurm" 
+                        stackId="cap" 
+                        fill="#6366f1" 
+                        radius={[0, 0, 0, 0]} 
+                        onClick={() => setCapacityFilter(capacityFilter === 'SLURM' ? 'ALL' : 'SLURM')}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      />
+                      <Bar 
+                        dataKey="gke" 
+                        name="GKE" 
+                        stackId="cap" 
+                        fill="#10b981" 
+                        radius={[0, 0, 0, 0]} 
+                        onClick={() => setCapacityFilter(capacityFilter === 'GKE' ? 'ALL' : 'GKE')}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      />
+                      <Bar 
+                        dataKey="idle" 
+                        name="Idle" 
+                        stackId="cap" 
+                        fill="#fbbf24" 
+                        radius={[0, 4, 4, 0]} 
+                        onClick={() => setCapacityFilter(capacityFilter === 'IDLE' ? 'ALL' : 'IDLE')}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
-               </div>
-               <div className="space-y-4">
-                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                     <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Capacity Breakdown</h4>
-                     <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                           <span className="text-sm text-slate-600">Total Nodes</span>
-                           <span className="text-sm font-bold text-slate-900">256</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                           <span className="text-sm text-slate-600">Allocated</span>
-                           <span className="text-sm font-bold text-emerald-600">200</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                           <span className="text-sm text-slate-600">Pending Qualification</span>
-                           <span className="text-sm font-bold text-amber-600">56</span>
-                        </div>
-                     </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Capacity Efficiency</h5>
+                  <div className="flex items-end gap-2 mb-1">
+                    <span className="text-2xl font-black text-slate-900">94.2%</span>
+                    <span className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-0.5">
+                      <TrendingUp size={12} /> +1.4%
+                    </span>
                   </div>
-               </div>
+                  <p className="text-[10px] text-slate-500">Allocated to Consumed ratio</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Consumption Split</h5>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium text-slate-600">Slurm</span>
+                      <span className="text-xs font-bold text-slate-900">47.3%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-indigo-500 h-full" style={{ width: '47.3%' }} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-medium text-slate-600">GKE</span>
+                      <span className="text-xs font-bold text-slate-900 text-right">52.7%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full" style={{ width: '52.7%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );
