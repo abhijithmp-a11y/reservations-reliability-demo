@@ -27,7 +27,7 @@ export const PROJECT_CLUSTERS = [
     id: 'c1', 
     name: 'us-west-train-v4', 
     region: 'US West (Oregon)',
-    gpuType: 'NVIDIA H100', 
+    gpuType: 'NVIDIA GB200', 
     type: 'GPU',
     orchestrator: 'GKE',
     chips: 2048, 
@@ -117,7 +117,7 @@ export const PROJECT_CLUSTERS = [
     region: 'Asia (Tokyo)',
     gpuType: 'TPU v4', 
     type: 'TPU',
-    orchestrator: 'Director',
+    orchestrator: 'Slurm',
     chips: 2048, 
     reservationId: 'res-2215', 
     mode: 'Managed', 
@@ -126,6 +126,23 @@ export const PROJECT_CLUSTERS = [
     tests: [
       { name: 'TensorCore Perf', status: 'pass', lastRun: '2023-10-25 08:00', duration: '60s', error: '-' },
       { name: 'ICI Link Stability', status: 'fail', lastRun: '2023-10-25 08:30', duration: '120s', error: 'High Latency' },
+    ]
+  },
+  { 
+    id: 'c8', 
+    name: 'us-east4-gke-b200', 
+    region: 'US East 4 (N. Virginia)',
+    gpuType: 'NVIDIA B200', 
+    type: 'GPU',
+    orchestrator: 'GKE',
+    chips: 100, 
+    reservationId: 'us-east4-reservation1', 
+    mode: 'Managed', 
+    qualifiedDate: '2026-02-05',
+    compliance: 'green',
+    tests: [
+      { name: 'HBM Bandwidth', status: 'pass', lastRun: '2026-02-05 10:00', duration: '45s', error: '-' },
+      { name: 'NCCL All-Reduce', status: 'pass', lastRun: '2026-02-05 10:15', duration: '120s', error: '-' },
     ]
   }
 ];
@@ -318,7 +335,7 @@ export const ProjectTopology: React.FC = () => {
                     cluster.orchestrator === 'GKE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                     cluster.orchestrator === 'Slurm' ? 'bg-blue-50 text-blue-700 border-blue-100' :
                     cluster.orchestrator === 'Vertex AI' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                    cluster.orchestrator === 'Director' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                    cluster.orchestrator === 'Slurm' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                     'bg-slate-50 text-slate-700 border-slate-100'
                   }`}>
                     {cluster.orchestrator}

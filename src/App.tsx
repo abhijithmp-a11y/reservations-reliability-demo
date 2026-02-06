@@ -36,7 +36,8 @@ import {
   Filter,
   Camera,
   Timer,
-  Download
+  Download,
+  Plus
 } from 'lucide-react';
 import { Card, StatCard, DonutChart, Sparkline, TableHeader } from '@/components/Card';
 import { DiagnosticsPanel } from '@/components/DiagnosticsPanel';
@@ -45,8 +46,9 @@ import { ClusterTopology, REGIONS } from '@/components/ClusterTopology';
 import { ClusterTable } from '@/components/ClusterTable';
 import { ClusterDirectorV2 } from '@/components/ClusterDirectorV2';
 import { ClusterDirectorBulk } from '@/components/ClusterDirectorBulk';
+import { ClusterDirectorB200 } from '@/components/ClusterDirectorB200';
 import { ProjectTopology } from '@/components/ProjectTopology';
-import { ReservationsList } from '@/components/ReservationsList';
+import { ReservationsList, RESERVATIONS } from '@/components/ReservationsList';
 import { ScenarioGuide, SCENARIOS } from '@/components/ScenarioGuide';
 import { Job, JobStatus, GoodputType, DashboardFilters } from '@/types';
 import { FilterBar } from '@/components/FilterBar';
@@ -618,7 +620,7 @@ const NAV_GROUPS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   // View state controls sub-views within tabs (e.g. List vs Detail)
-  const [view, setView] = useState<'dashboard' | 'diagnostics' | 'diagnostics-list' | 'cluster-detail' | 'reservation-detail' | 'fleet-detail' | 'reservation-bulk'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'diagnostics' | 'diagnostics-list' | 'cluster-detail' | 'reservation-detail' | 'fleet-detail' | 'reservation-bulk' | 'reservation-b200'>('dashboard');
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     'infrastructure': true,
     'tools': true,
@@ -633,7 +635,7 @@ export default function App() {
   
   // Global Scope Filters
   const [filters, setFilters] = useState<DashboardFilters>({
-    accelerator: 'All',
+    workload: 'All',
     jobType: 'All',
     orchestrator: 'All',
     timeRange: 'Last 24 hours',
@@ -656,14 +658,12 @@ export default function App() {
   // Derived Lists & Metrics
   const jobsInScope = useMemo(() => {
     return MOCK_JOBS.filter(job => {
-      // Accelerator Filter
-      let matchAccelerator = false;
-      if (filters.accelerator === 'All') {
-        matchAccelerator = true;
-      } else if (filters.accelerator === 'TPUs') {
-        matchAccelerator = job.accelerator?.includes('TPU') || false;
-      } else if (filters.accelerator === 'GPUs') {
-        matchAccelerator = job.accelerator?.includes('NVIDIA') || false;
+      // Workload Filter
+      let matchWorkload = false;
+      if (filters.workload === 'All') {
+        matchWorkload = true;
+      } else {
+        matchWorkload = job.workloadName.toLowerCase().includes(filters.workload.toLowerCase());
       }
 
       // Job Type Filter
@@ -702,7 +702,7 @@ export default function App() {
 
       const matchReservation = filters.reservation === 'All' || job.reservation === filters.reservation;
 
-      return matchAccelerator && matchJobType && matchOrchestrator && matchTime && matchReservation;
+      return matchWorkload && matchJobType && matchOrchestrator && matchTime && matchReservation;
     });
   }, [filters]);
 
@@ -797,6 +797,13 @@ export default function App() {
             list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
             list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
             list.push({ id: 'director-bulk', label: 'us-central1-reservation2', active: true });
+            return list;
+        }
+
+        if (activeTab === 'director-b200') {
+            list.push({ id: 'grp-infra', label: 'Infrastructure', onClick: undefined });
+            list.push({ id: 'reservations', label: 'Reservations', onClick: () => handleTabChange('reservations') });
+            list.push({ id: 'director-b200', label: 'us-east4-reservation1', active: true });
             return list;
         }
 
@@ -1021,43 +1028,99 @@ export default function App() {
            job.badNodes.length > 0;
   };
 
+  const clusterSummaries = useMemo(() => {
+    const allClusters = REGIONS.flatMap(r => r.clusters.map(c => ({ ...c, region: r.name })));
+    
+    // Orchestrator summary
+    const orchestrators: Record<string, number> = {};
+    allClusters.forEach(c => {
+      orchestrators[c.orchestrator] = (orchestrators[c.orchestrator] || 0) + 1;
+    });
+    const orchestratorData = Object.entries(orchestrators).map(([name, value], i) => ({
+      name,
+      value,
+      color: name === 'GKE' ? '#34A853' : 
+             name === 'Slurm' ? '#4285F4' : 
+             name === 'Vertex AI' ? '#FBBC04' : 
+             name === 'Compute' ? '#EA4335' :
+             ['#06b6d4', '#f59e0b', '#ec4899'][i % 3]
+    }));
+
+    // Status summary
+    const statuses: Record<string, number> = {};
+    allClusters.forEach(c => {
+      const statusLabel = c.status === 'healthy' ? 'Healthy' : 'Warning';
+      statuses[statusLabel] = (statuses[statusLabel] || 0) + 1;
+    });
+    const statusData = Object.entries(statuses).map(([name, value]) => ({
+      name,
+      value,
+      color: name === 'Healthy' ? '#10b981' : '#f59e0b'
+    }));
+
+    // Region summary
+    const regions: Record<string, number> = {};
+    allClusters.forEach(c => {
+      regions[c.region] = (regions[c.region] || 0) + 1;
+    });
+    const regionData = Object.entries(regions).map(([name, value], i) => ({
+      name,
+      value,
+      color: ['#1967D2', '#34A853', '#FBBC04', '#EA4335', '#9333EA', '#06b6d4'][i % 6]
+    }));
+
+    return { orchestratorData, statusData, regionData };
+  }, [REGIONS]);
+
   // ... (renderOverviewContent and other render functions omitted for brevity as they haven't changed)
   const renderOverviewContent = () => (
     <div className="space-y-4 animate-fadeIn">
         <h1 className="text-xl font-bold text-slate-900">Overview</h1>
-        <FilterBar filters={filters} setFilters={setFilters} hideTimeRange={true} hideJobType={true} />
         
         {/* Reservation Overview */}
         <div className="space-y-2">
           <h3 className="text-sm font-bold text-slate-900">Reservation overview</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card title="TPU v/s GPU Reservation">
+            <Card title="Reservation by GPU type">
               <DonutChart 
                 data={[
-                  { name: 'TPU', value: 3200, color: '#1967D2' },
-                  { name: 'GPU', value: 1800, color: '#4285F4' }
+                  { name: 'NVIDIA GB200', value: 4464, color: '#9333EA' },
+                  { name: 'NVIDIA B200', value: 256, color: '#10b981' }
                 ]} 
               />
             </Card>
-            <Card title="Orchestrator Reservation">
+            <Card title="Reservation by location">
               <DonutChart 
                 data={[
-                  { name: 'GKE', value: 2100, color: '#34A853' },
-                  { name: 'Slurm', value: 1200, color: '#4285F4' },
-                  { name: 'Vertex AI', value: 800, color: '#FBBC04' },
-                  { name: 'Director', value: 500, color: '#1967D2' },
-                  { name: 'Compute', value: 300, color: '#EA4335' },
-                  { name: 'Custom', value: 100, color: '#9333EA' }
+                  { name: 'us-central1-a', value: 4320, color: '#34A853' },
+                  { name: 'us-west8-a', value: 144, color: '#FBBC04' },
+                  { name: 'us-east4-a', value: 256, color: '#1967D2' }
                 ]} 
               />
             </Card>
             <Card title="Healthy v/s Unhealthy Reservation">
               <DonutChart 
                 data={[
-                  { name: 'Healthy', value: 4850, color: '#10b981' },
-                  { name: 'Unhealthy', value: 150, color: '#ef4444' }
+                  { name: 'Healthy', value: 4464, color: '#10b981' },
+                  { name: 'Unhealthy', value: 0, color: '#ef4444' }
                 ]} 
               />
+            </Card>
+          </div>
+        </div>
+
+        {/* Cluster Overview */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-bold text-slate-900">Cluster overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card title="Clusters by Orchestrator">
+              <DonutChart data={clusterSummaries.orchestratorData} />
+            </Card>
+            <Card title="Clusters by Status">
+              <DonutChart data={clusterSummaries.statusData} />
+            </Card>
+            <Card title="Clusters by Region">
+              <DonutChart data={clusterSummaries.regionData} />
             </Card>
           </div>
         </div>
@@ -1066,12 +1129,12 @@ export default function App() {
         <div>
           <div className="flex items-center justify-between mb-2">
              <h3 className="text-sm font-bold text-slate-900">Reservation topology</h3>
-             <button onClick={() => handleTabChange('director')} className="text-xs text-[#1967D2] hover:text-[#1557B0] font-medium flex items-center gap-1">
+             <button onClick={() => handleTabChange('reservations')} className="text-xs text-[#1967D2] hover:text-[#1557B0] font-medium flex items-center gap-1">
                View reservation details <ArrowRight size={12} />
              </button>
           </div>
           <Card className="bg-slate-50/50">
-            <ClusterTopology onClusterClick={handleClusterClick} jobs={jobsInScope} />
+            <ClusterTopology onClusterClick={() => handleTabChange('reservations')} jobs={jobsInScope} />
           </Card>
         </div>
     </div>
@@ -1147,7 +1210,13 @@ export default function App() {
   const renderClustersContent = () => {
     return (
       <div className="space-y-4 animate-fadeIn">
-        <h1 className="text-xl font-bold text-slate-900">Clusters</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-bold text-slate-900">Clusters</h1>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1967D2] text-white rounded-md text-xs font-bold hover:bg-[#1557B0] transition-colors shadow-sm">
+            <Plus size={14} />
+            Add cluster
+          </button>
+        </div>
         <ClusterTable 
           onClusterClick={handleClusterClick}
           onViewTopology={handleClusterClick}
@@ -1273,7 +1342,7 @@ export default function App() {
         <aside className="w-56 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto">
            <div className="p-3">
               <div className="flex items-center gap-2 mb-3 px-2">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Infrastructure</div>
+                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI/ML Mission control</div>
                  <span className="bg-blue-600 text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-sm">NEW</span>
               </div>
               
@@ -1371,6 +1440,15 @@ export default function App() {
                       const job = MOCK_JOBS.find(j => j.id === jobId) || MOCK_JOBS[0];
                       handleViewJob(job);
                     }}
+                  />
+               </div>
+            )}
+
+            {activeTab === 'director-b200' && (
+               <div className="space-y-4 animate-fadeIn">
+                  <ClusterDirectorB200 
+                    onBack={() => handleTabChange('reservations')}
+                    clusterId="us-east4-reservation1"
                   />
                </div>
             )}

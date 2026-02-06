@@ -528,12 +528,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({
   const funnelInfo = (
     <div className="group relative">
        <Info size={14} className="text-slate-400 hover:text-[#1967D2] cursor-help" />
-       <div className="absolute right-0 w-64 bg-slate-800 text-white text-[10px] p-3 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 translate-y-1 font-normal normal-case leading-relaxed pointer-events-none">
+       <div className="absolute right-0 w-64 bg-white text-slate-900 text-[10px] p-3 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 translate-y-1 font-normal normal-case leading-relaxed pointer-events-none border border-slate-200">
           <div className="mb-2"><strong>Committed:</strong> The total number of accelerators the organization has purchased or reserved.</div>
           <div className="mb-2"><strong>Available:</strong> The subset of committed hardware that is online and healthy.</div>
           <div className="mb-2"><strong>Allocated:</strong> The number of chips currently assigned to a scheduler.</div>
           <div><strong>Utilized:</strong> The number of chips actually performing matrix operations (Goodput).</div>
-          <div className="absolute -top-1 right-1 w-2 h-2 bg-slate-800 rotate-45"></div>
+          <div className="absolute -top-1 right-1 w-2 h-2 bg-white border-t border-l border-slate-200 rotate-45"></div>
        </div>
     </div>
   );
@@ -541,12 +541,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({
   const trendsInfo = (
     <div className="group relative">
        <Info size={14} className="text-slate-400 hover:text-[#1967D2] cursor-help" />
-       <div className="absolute right-0 w-64 bg-slate-800 text-white text-[10px] p-3 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 translate-y-1 font-normal normal-case leading-relaxed pointer-events-none">
+       <div className="absolute right-0 w-64 bg-white text-slate-900 text-[10px] p-3 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 translate-y-1 font-normal normal-case leading-relaxed pointer-events-none border border-slate-200">
           <div className="mb-2"><strong>Availability rate:</strong> Historical trend of hardware uptime.</div>
           <div className="mb-2"><strong>Activation rate:</strong> The speed at which allocated resources begin actual computation.</div>
           <div className="mb-2"><strong>Scheduling rate:</strong> The efficiency of the orchestrator in placing queued jobs onto available nodes.</div>
           <div><strong>Utilization rate:</strong> Historical view of fleet consumption over time.</div>
-          <div className="absolute -top-1 right-1 w-2 h-2 bg-slate-800 rotate-45"></div>
+          <div className="absolute -top-1 right-1 w-2 h-2 bg-white border-t border-l border-slate-200 rotate-45"></div>
        </div>
     </div>
   );

@@ -1199,8 +1199,8 @@ export const ClusterDirectorV2: React.FC<{
             const isMaint = data.type === 'MAINT';
             
             return (
-              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
-                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
+              <div className="bg-white text-slate-900 p-3 rounded-lg shadow-xl text-[10px] border border-slate-200 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-200 pb-1 uppercase tracking-wider text-slate-500">
                   {data.name} {isMaint ? 'Maintenance' : 'Repair'}
                 </div>
                 {isOngoing ? (
@@ -1326,8 +1326,8 @@ export const ClusterDirectorV2: React.FC<{
         const CustomCapacityTooltip = ({ active, payload, label }: any) => {
           if (active && payload && payload.length) {
             return (
-              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
-                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
+              <div className="bg-white text-slate-900 p-3 rounded-lg shadow-xl text-[10px] border border-slate-200 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-200 pb-1 uppercase tracking-wider text-slate-500">
                   {label}
                 </div>
                 <div className="space-y-1.5 mt-2">
@@ -1519,7 +1519,7 @@ export const ClusterDirectorV2: React.FC<{
 
       <div className="space-y-6 animate-fadeIn">
          {/* Combined Summary Block (Now at the top) */}
-         <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
             {/* VMs Used Section */}
             <div className="flex items-center gap-6">
                <div className="relative w-20 h-20 flex-shrink-0">
@@ -1636,19 +1636,19 @@ export const ClusterDirectorV2: React.FC<{
          {/* Collapsible Details Sections */}
          <div className="space-y-4">
             {/* Reservation Basics Collapsible */}
-            <div className="bg-slate-900 border border-slate-800 rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                <button 
                  onClick={() => setBasicsOpen(!basicsOpen)}
-                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800 transition-colors"
+                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                >
-                  <h3 className="text-lg font-medium text-slate-100">Reservation basics</h3>
+                  <h3 className="text-lg font-medium text-slate-900">Reservation basics</h3>
                   <ChevronDown size={20} className={`text-slate-500 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
                </button>
                {basicsOpen && (
-                  <div className="px-6 pb-6 border-t border-slate-800 animate-fadeIn">
-                     <div className="border border-slate-800 rounded overflow-hidden mt-4">
+                  <div className="px-6 pb-6 border-t border-slate-200 animate-fadeIn">
+                     <div className="border border-slate-200 rounded overflow-hidden mt-4">
                         <table className="w-full text-sm">
-                           <tbody className="divide-y divide-slate-800">
+                           <tbody className="divide-y divide-slate-200">
                               {[
                                 { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
                                 { label: 'Assured count', value: '17' },
@@ -1682,12 +1682,12 @@ export const ClusterDirectorV2: React.FC<{
             </div>
 
             {/* Configuration Details Collapsible */}
-            <div className="bg-slate-900 border border-slate-800 rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                <button 
                  onClick={() => setConfigOpen(!configOpen)}
-                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800 transition-colors"
+                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                >
-                  <h3 className="text-lg font-medium text-slate-100">Configuration details</h3>
+                  <h3 className="text-lg font-medium text-slate-900">Configuration details</h3>
                   <ChevronDown size={20} className={`text-slate-500 transition-transform ${configOpen ? 'rotate-180' : ''}`} />
                </button>
                {configOpen && (
@@ -1699,9 +1699,9 @@ export const ClusterDirectorV2: React.FC<{
                                 { label: 'Number of VM instances', value: reconciledMetrics.totalNodes.toString() },
                                 { label: 'VMs in use', value: reconciledMetrics.nodesWithVM.toString() },
                                 { label: 'Machine type', value: 'a4x-highgpu-4g' },
-                                { label: 'vCPUs', value: '140' },
-                                { label: 'Memory', value: '884 GB' },
-                                { label: 'Min CPU Platform', value: 'Automatic' },
+                                { label: 'vCPUs', value: '208' },
+                                { label: 'Memory', value: '1872 GB' },
+                                { label: 'Min CPU Platform', value: 'Intel Sapphire Rapids' },
                                 { label: 'Placement policy', value: '-' },
                               ].map((row, idx) => (
                                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
@@ -1839,9 +1839,9 @@ export const ClusterDirectorV2: React.FC<{
                       }
 
                       return (
-                        <div key={sb.id} className="border border-slate-800 rounded-lg bg-slate-900 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                        <div key={sb.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm transition-all hover:shadow-md">
                           <div 
-                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors"
+                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                             onClick={() => toggleSubblock(sb.id)}
                           >
                             <div className="flex items-center gap-3">

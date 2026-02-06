@@ -67,7 +67,7 @@ export interface DiagnosticReport {
 }
 
 export interface DashboardFilters {
-  accelerator: string;
+  workload: string;
   jobType: string;
   orchestrator: string;
   timeRange: string;

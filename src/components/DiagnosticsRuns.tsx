@@ -127,7 +127,7 @@ export const DiagnosticsRuns: React.FC<DiagnosticsRunsProps> = ({ onRunClick }) 
               onClick={() => setActiveView(view)}
               className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors whitespace-nowrap border ${
                 activeView === view 
-                  ? 'bg-slate-800 text-white border-slate-800' 
+                  ? 'bg-[#1967D2] text-white border-[#1967D2]' 
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >

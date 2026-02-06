@@ -53,8 +53,8 @@ export const JobTopology: React.FC<JobTopologyProps> = ({ job, onBack, onJobClic
 
       const maintSeed = (i * 31 + job.id.length) % 100;
       let maintStatus: 'uptodate' | 'available' | 'inprogress' | 'pending' = 'uptodate';
-      if (maintSeed > 98) maintStatus = 'inprogress';
-      else if (maintSeed > 95) maintStatus = 'pending';
+      // Running jobs cannot have nodes in active maintenance
+      if (maintSeed > 95) maintStatus = 'pending';
       else if (maintSeed > 90) maintStatus = 'available';
 
       const nodesPerSubblock = 18;

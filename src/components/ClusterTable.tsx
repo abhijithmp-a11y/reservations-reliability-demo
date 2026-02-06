@@ -61,7 +61,7 @@ export const ClusterTable: React.FC<ClusterTableProps> = ({ filterOrchestrator, 
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                   cluster.orchestrator === 'GKE' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
                 }`}>
-                  {cluster.orchestrator === 'Director' ? 'Slurm' : cluster.orchestrator}
+                  {cluster.orchestrator}
                 </span>
               </td>
               <td className="px-6 py-4">

@@ -11,7 +11,7 @@ export const REGIONS = [
     status: 'healthy',
     latency: '24ms',
     clusters: [
-      { id: 'c1', name: 'us-west-train-v4', type: 'H100 Pod', orchestrator: 'GKE', count: 2048, util: 94, status: 'healthy', reservation: 'us-west8-reservation1' },
+      { id: 'c1', name: 'us-west-train-v4', type: 'GB200 Pod', orchestrator: 'GKE', count: 2048, util: 94, status: 'healthy', reservation: 'us-west8-reservation1' },
       { id: 'c2', name: 'us-west-inf-01', type: 'T4 Pool', orchestrator: 'Slurm', count: 512, util: 45, status: 'warning', reservation: 'us-west8-reservation1' }
     ]
   },
@@ -21,7 +21,17 @@ export const REGIONS = [
     status: 'healthy',
     latency: '82ms',
     clusters: [
-      { id: 'c3', name: 'us-east-train-02', type: 'TPU v5p', orchestrator: 'GKE', count: 1024, util: 98, status: 'healthy', reservation: 'us-central1-reservation2' }
+      { id: 'c3', name: 'us-east-train-02', type: 'TPU v5p', orchestrator: 'GKE', count: 1024, util: 98, status: 'healthy', reservation: 'us-central1-reservation2' },
+      { id: 'c7', name: 'us-east-director-01', type: 'H100 Pod', orchestrator: 'Slurm', count: 512, util: 85, status: 'healthy', reservation: 'us-central1-reservation2' }
+    ]
+  },
+  {
+    id: 'us-east-4',
+    name: 'US East 4 (N. Virginia)',
+    status: 'healthy',
+    latency: '85ms',
+    clusters: [
+      { id: 'c8', name: 'us-east4-gke-b200', type: 'B200 Pod', orchestrator: 'GKE', count: 100, util: 0, status: 'healthy', reservation: 'us-east4-reservation1' }
     ]
   },
   {
@@ -40,7 +50,7 @@ export const REGIONS = [
     status: 'healthy',
     latency: '110ms',
     clusters: [
-      { id: 'c6', name: 'asia-ne-tpu-1', type: 'TPU v4', orchestrator: 'Director', count: 2048, util: 95, status: 'healthy', reservation: 'asia-south-reservation4' }
+      { id: 'c6', name: 'asia-ne-tpu-1', type: 'TPU v4', orchestrator: 'Slurm', count: 2048, util: 95, status: 'healthy', reservation: 'asia-south-reservation4' }
     ]
   }
 ];
@@ -240,7 +250,7 @@ export const ClusterTopology: React.FC<ClusterTopologyProps> = ({ onClusterClick
                               cluster.orchestrator === 'GKE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                               cluster.orchestrator === 'Slurm' ? 'bg-blue-50 text-blue-700 border-blue-100' :
                               cluster.orchestrator === 'Vertex AI' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                              cluster.orchestrator === 'Director' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                              cluster.orchestrator === 'Slurm' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                               'bg-slate-50 text-slate-700 border-slate-100'
                             }`}>
                               {cluster.orchestrator}

@@ -817,8 +817,8 @@ export const ClusterDirectorBulk: React.FC<{
         const CustomCapacityTooltip = ({ active, payload, label }: any) => {
           if (active && payload && payload.length) {
             return (
-              <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl text-[10px] border border-slate-700 animate-fadeIn">
-                <div className="font-bold mb-1 border-b border-slate-700 pb-1 uppercase tracking-wider text-slate-400">
+              <div className="bg-white text-slate-900 p-3 rounded-lg shadow-xl text-[10px] border border-slate-200 animate-fadeIn">
+                <div className="font-bold mb-1 border-b border-slate-200 pb-1 uppercase tracking-wider text-slate-500">
                   {label}
                 </div>
                 <div className="space-y-1.5 mt-2">
@@ -1049,10 +1049,10 @@ export const ClusterDirectorBulk: React.FC<{
               <ChevronDown size={20} className={`text-slate-500 transition-transform ${basicsOpen ? 'rotate-180' : ''}`} />
             </button>
             {basicsOpen && (
-              <div className="px-6 pb-6 border-t border-slate-800 animate-fadeIn">
-                <div className="border border-slate-800 rounded overflow-hidden mt-4">
+              <div className="px-6 pb-6 border-t border-slate-200 animate-fadeIn">
+                <div className="border border-slate-200 rounded overflow-hidden mt-4">
                   <table className="w-full text-sm">
-                    <tbody className="divide-y divide-slate-800">
+                    <tbody className="divide-y divide-slate-200">
                       {[
                         { label: 'Status', value: <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200"><CheckCircle2 size={12} /> Ready</span> },
                         { label: 'Assured count', value: reconciledMetrics.totalNodes.toString() },
@@ -1098,10 +1098,10 @@ export const ClusterDirectorBulk: React.FC<{
                       {[
                         { label: 'Number of VM instances', value: reconciledMetrics.totalNodes.toString() },
                         { label: 'VMs in use', value: reconciledMetrics.nodesWithVM.toString() },
-                        { label: 'Machine type', value: 'a3-highgpu-8g' },
-                        { label: 'vCPUs', value: '208' },
-                        { label: 'Memory', value: '1872 GB' },
-                        { label: 'Min CPU Platform', value: 'Intel Sapphire Rapids' },
+                        { label: 'Machine type', value: 'a4x-highgpu-4g' },
+                        { label: 'vCPUs', value: '140' },
+                        { label: 'Memory', value: '884 GB' },
+                        { label: 'Min CPU Platform', value: 'Automatic' },
                         { label: 'Placement policy', value: 'Compact' },
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
@@ -1114,7 +1114,7 @@ export const ClusterDirectorBulk: React.FC<{
                         <td colSpan={2} className="py-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Accelerators</td>
                       </tr>
                       {[
-                        { label: 'Accelerator type', value: 'NVIDIA H100' },
+                        { label: 'Accelerator type', value: 'NVIDIA GB200' },
                         { label: 'Accelerator count', value: '8' },
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">

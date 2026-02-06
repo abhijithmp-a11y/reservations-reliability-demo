@@ -4,7 +4,7 @@ import { ChevronDown, Clock } from 'lucide-react';
 import { DashboardFilters } from '../types';
 
 const FILTER_OPTIONS = {
-  accelerator: ['All', 'TPUs', 'GPUs'],
+  workload: ['All', 'AlphaFold', 'LLAMA-3', 'Gemini-Flash', 'GPT-5', 'ResNet-50', 'BERT-Large', 'Stable-Diffusion-XL'],
   jobType: ['All', 'Training', 'Inference'],
   orchestrator: ['All', 'Reservation details', 'Compute Engine', 'Google Kubernetes Engine', 'Vertex AI', 'Slurm', 'Custom'],
   timeRange: ['Last 1 hour', 'Last 12 hours', 'Last 24 hours', 'Last 7 days', 'All time'],
@@ -32,14 +32,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     <div className="mb-3 animate-fadeIn">
       <div className="flex flex-wrap gap-3 w-full">
         <div className="flex flex-col gap-0.5">
-          <label className="text-[10px] text-slate-500 font-bold">Accelerator</label>
+          <label className="text-[10px] text-slate-500 font-bold">Workload</label>
           <div className="relative">
             <select 
-              value={filters.accelerator}
-              onChange={(e) => handleChange('accelerator', e.target.value)}
+              value={filters.workload}
+              onChange={(e) => handleChange('workload', e.target.value)}
               className="bg-white border border-slate-300 text-slate-700 text-xs rounded focus:ring-[#1967D2] focus:border-[#1967D2] block w-full py-1.5 px-2 pr-6 appearance-none hover:bg-slate-50 transition-colors min-w-[140px] shadow-sm"
             >
-              {FILTER_OPTIONS.accelerator.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Select All' : opt}</option>)}
+              {FILTER_OPTIONS.workload.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Select All' : opt}</option>)}
             </select>
             <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
           </div>
